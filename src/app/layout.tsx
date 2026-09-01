@@ -9,6 +9,8 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 export const metadata: Metadata = {
   title: { default: "Carrom Points", template: "%s · Carrom Points" },
   description: "Season standings and match log for our carrom board.",
+  // Belt and braces with src/app/robots.ts.
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

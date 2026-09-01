@@ -102,11 +102,36 @@ npm install
 npm run dev
 ```
 
-### 6. Deploy
+### 6. Deploy to Vercel
 
-Import the repo on Vercel and set the same two environment variables
-(`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`). Nothing else to
-configure — password sign-in needs no redirect URLs.
+1. **Import the repo** on Vercel. `vercel.json` pins the framework to `nextjs`,
+   so it builds correctly even if the dashboard's preset was set to *Other*
+   (that is what produces `No Output Directory named "public" found` — this repo
+   has no `public/` folder because it does not need one).
+2. **Add the two environment variables** under *Settings → Environment
+   Variables*, ticked for **Production, Preview and Development**:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+   Miss the Preview tick and preview builds come up broken.
+3. **Set the function region** under *Settings → Functions* to whichever region
+   your Supabase project is in — `bom1` (Mumbai) if you picked an Indian
+   Supabase region. The default is `iad1` (Washington DC), which means every
+   page render crosses an ocean twice to reach your database.
+4. Redeploy. Password sign-in needs no callback URLs, so there is nothing to
+   add on the Supabase side.
+
+Two things worth knowing:
+
+- **Preview deployments are public URLs** running against the same Supabase
+  project. RLS still protects the data — a stranger who finds the URL sees the
+  sign-in page and nothing else — but if you would rather they were not
+  reachable at all, turn on *Deployment Protection* in Vercel.
+- The app sets `X-Frame-Options`, `Content-Security-Policy: frame-ancestors
+  'none'`, `nosniff`, a referrer policy and a permissions policy on every
+  response (`next.config.ts`), and serves a `robots.txt` that disallows
+  everything. None of it is load-bearing — RLS is — but a dashboard on the open
+  internet may as well not be framed or indexed.
 
 ---
 
@@ -128,6 +153,9 @@ configure — password sign-in needs no redirect URLs.
 | `npm run typecheck` | Route typegen + `tsc --noEmit` |
 | `npm run lint` | ESLint |
 | `npm run test:db` | Applies the migrations to a throwaway Postgres and asserts the schema, the RLS policies, the signup gate and the standings maths |
+
+`vercel.json` carries the framework preset only; everything else about the
+deploy lives in the Vercel dashboard.
 
 `npm run test:db` needs local Postgres **server** binaries (`initdb`, `pg_ctl`) —
 no Docker. It stands up a temporary cluster, installs stand-ins for the Supabase
