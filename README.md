@@ -15,14 +15,19 @@ roster to keep up to date and no way to add one from the app. A row in
 `app_members` creates the matching player, renames it when the display name
 changes, and deactivating is the only thing the Players page can do.
 
-A **season** holds many **matches**. A match has two sides, A and B, each with a
-board score, and a roster in `match_players` — one player per side for singles,
-two for doubles. Nothing about standings is stored: the `season_standings` view
-derives played / won / lost / points scored / points conceded from the matches
-themselves, so correcting a match immediately corrects the table.
+A **season** holds many **matches**. Two or three of you play a match, and what
+gets written down is what each person finished on — *Ganesh 10, Prajwal 20,
+Amitesh 30*. Those numbers live one per person in `match_players`, so a match
+carries no score of its own.
 
-The leaderboard ranks by **points scored**, with point difference and then wins
-breaking ties.
+Nothing about standings is stored: the `season_standings` view derives played /
+won / drawn / lost / points scored from the matches themselves, so correcting a
+match immediately corrects the table. Points **accumulate over the season**; a
+**win** is finishing a match on the most points, and everyone tied at the top of
+a match gets a draw instead.
+
+The leaderboard ranks by **points scored**, with wins and then your best single
+match breaking ties.
 
 ## How access works
 
@@ -79,7 +84,7 @@ npx supabase link --project-ref <your-project-ref>
 npx supabase db push
 ```
 
-Or paste `supabase/migrations/0001` → `0005` into the SQL editor in order.
+Or paste `supabase/migrations/0001` → `0006` into the SQL editor in order.
 
 ### 3. Fill in the allowlist
 
@@ -200,7 +205,7 @@ curl -i -X POST "$NEXT_PUBLIC_SUPABASE_URL/auth/v1/token?grant_type=password" \
 2. Try adding a user with an unlisted address in the dashboard — Supabase
    refuses it, which is the signup trigger doing its job.
 3. The Players page already lists the three accounts — nothing to add. Start a
-   season, log a singles match and a doubles match.
+   season, then log a match between two of you and one between all three.
 4. The leaderboard totals match what you entered, ordered by points scored.
 5. Start a second season — its table is empty and the first season's is untouched.
 
@@ -242,7 +247,8 @@ src/
     types/database.ts          typed mirror of the migrations
 supabase/
   migrations/                  0001 schema, 0002 standings view, 0003 RLS, 0004 functions,
-                               0005 players provisioned from the allowlist
+                               0005 players provisioned from the allowlist,
+                               0006 points per player rather than per side
   scripts/                     add a login, reset a password, list who has one
   seed.sql                     the three approved accounts -- and so the players
   tests/                       local Postgres harness -- also runs scripts/ verbatim

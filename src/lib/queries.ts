@@ -50,8 +50,8 @@ export async function listPlayers(supabase: Client): Promise<Player[]> {
 }
 
 /**
- * The leaderboard. Ranked by board points scored, with point difference and then
- * wins breaking ties -- two players on the same points should not swap places
+ * The leaderboard. Ranked by points scored, with wins and then the best single
+ * match breaking ties -- two players on the same points should not swap places
  * every time the page reloads.
  */
 export async function getStandings(
@@ -63,8 +63,8 @@ export async function getStandings(
     .select("*")
     .eq("season_id", seasonId)
     .order("points_scored", { ascending: false })
-    .order("point_diff", { ascending: false })
     .order("wins", { ascending: false })
+    .order("best_score", { ascending: false })
     .order("player_name", { ascending: true });
 
   if (error) throw error;
@@ -78,7 +78,7 @@ export async function listMatches(
 ): Promise<MatchWithPlayers[]> {
   let query = supabase
     .from("matches")
-    .select("*, match_players(side, players(id, name))")
+    .select("*, match_players(points, players(id, name))")
     .eq("season_id", seasonId)
     .order("played_at", { ascending: false });
 

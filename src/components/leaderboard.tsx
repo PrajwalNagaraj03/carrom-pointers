@@ -3,8 +3,9 @@ import type { StandingsRow } from "@/lib/types/database";
 
 /**
  * Ranked by points scored -- that column is the one in bold, so it is obvious
- * what the ordering means. On narrow screens the table becomes cards rather
- * than something you have to scroll sideways.
+ * what the ordering means. A win is finishing a match on the most points. On
+ * narrow screens the table becomes cards rather than something you have to
+ * scroll sideways.
  */
 export function Leaderboard({ rows }: { rows: StandingsRow[] }) {
   if (rows.length === 0) {
@@ -31,11 +32,8 @@ export function Leaderboard({ rows }: { rows: StandingsRow[] }) {
             <th scope="col" className="px-2 py-2.5 text-right font-medium">
               W–L
             </th>
-            <th scope="col" className="px-2 py-2.5 text-right font-medium">
-              Conceded
-            </th>
             <th scope="col" className="px-5 py-2.5 text-right font-medium">
-              Diff
+              Best
             </th>
           </tr>
         </thead>
@@ -54,11 +52,8 @@ export function Leaderboard({ rows }: { rows: StandingsRow[] }) {
                 {row.wins}–{row.losses}
                 {row.draws > 0 && `–${row.draws}`}
               </td>
-              <td className="numeric px-2 py-3 text-right text-muted">
-                {row.points_conceded}
-              </td>
-              <td className="numeric px-5 py-3 text-right">
-                <Diff value={row.point_diff} />
+              <td className="numeric px-5 py-3 text-right text-muted">
+                {row.best_score}
               </td>
             </tr>
           ))}
@@ -72,8 +67,8 @@ export function Leaderboard({ rows }: { rows: StandingsRow[] }) {
             <div className="min-w-0 flex-1">
               <p className="truncate font-medium">{row.player_name}</p>
               <p className="numeric text-xs text-muted">
-                {row.matches_played} played · {row.wins}–{row.losses} · conceded{" "}
-                {row.points_conceded} · <Diff value={row.point_diff} />
+                {row.matches_played} played · {row.wins}–{row.losses} · best{" "}
+                {row.best_score}
               </p>
             </div>
             <span className="numeric text-lg font-semibold">{row.points_scored}</span>
@@ -81,16 +76,5 @@ export function Leaderboard({ rows }: { rows: StandingsRow[] }) {
         ))}
       </ul>
     </>
-  );
-}
-
-function Diff({ value }: { value: number }) {
-  const tone =
-    value > 0 ? "text-positive" : value < 0 ? "text-negative" : "text-muted";
-  return (
-    <span className={`numeric ${tone}`}>
-      {value > 0 ? "+" : ""}
-      {value}
-    </span>
   );
 }

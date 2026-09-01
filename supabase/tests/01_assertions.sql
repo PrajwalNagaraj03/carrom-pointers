@@ -94,12 +94,9 @@ insert into public.app_members (email, display_name) values
   ('chetan@example.com', 'Chetan'),
   ('divya@example.com',  'Divya');
 
-select
-  (select id from public.players where name = 'Ana')    as ana,
-  (select id from public.players where name = 'Bala')   as bala,
-  (select id from public.players where name = 'Chetan') as chetan,
-  (select id from public.players where name = 'Divya')  as divya
-\gset
+-- Player ids are looked up by name throughout. psql variables would be terser
+-- but they do not survive into a dollar-quoted do block, and half of what
+-- follows is inside one.
 
 \echo '== a member can set up a season and log matches'
 begin;
@@ -109,19 +106,20 @@ set local request.jwt.claims = :'MEMBER_JWT';
 insert into public.seasons (id, name) values
   ('aaaaaaaa-0000-0000-0000-000000000001', 'Season 1');
 
--- singles: Ana 25, Bala 12
+-- two of them: Ana 25, Bala 12
 select public.create_match(
-  'aaaaaaaa-0000-0000-0000-000000000001', 'singles',
-  array[:'ana']::uuid[],
-  array[:'bala']::uuid[],
-  25, 12);
+  'aaaaaaaa-0000-0000-0000-000000000001',
+  array[(select id from public.players where name = 'Ana'),
+        (select id from public.players where name = 'Bala')],
+  array[25, 12]);
 
--- doubles: Ana+Chetan 21, Bala+Divya 25
+-- three of them, tied at the top: Ana 21, Bala 25, Chetan 25
 select public.create_match(
-  'aaaaaaaa-0000-0000-0000-000000000001', 'doubles',
-  array[:'ana',:'chetan']::uuid[],
-  array[:'bala',:'divya']::uuid[],
-  21, 25);
+  'aaaaaaaa-0000-0000-0000-000000000001',
+  array[(select id from public.players where name = 'Ana'),
+        (select id from public.players where name = 'Bala'),
+        (select id from public.players where name = 'Chetan')],
+  array[21, 25, 25]);
 
 do $$
 declare v_created_by uuid;
@@ -142,16 +140,29 @@ set local request.jwt.claims = :'MEMBER_JWT';
 do $$
 declare r record;
 begin
+  -- Ana: won the first (25), lost the second (21).
   select * into r from public.season_standings where player_name = 'Ana';
-  assert r.matches_played = 2, 'FAIL: Ana played 2';
-  assert r.wins = 1 and r.losses = 1, format('FAIL: Ana W/L was %s/%s', r.wins, r.losses);
+  assert r.matches_played = 2, format('FAIL: Ana played %s, expected 2', r.matches_played);
+  assert r.wins = 1 and r.draws = 0 and r.losses = 1,
+    format('FAIL: Ana W/D/L was %s/%s/%s', r.wins, r.draws, r.losses);
   assert r.points_scored = 46, format('FAIL: Ana scored %s, expected 46', r.points_scored);
-  assert r.points_conceded = 37, format('FAIL: Ana conceded %s, expected 37', r.points_conceded);
-  assert r.point_diff = 9, format('FAIL: Ana diff was %s', r.point_diff);
+  assert r.best_score = 25, format('FAIL: Ana best was %s, expected 25', r.best_score);
 
-  select * into r from public.season_standings where player_name = 'Divya';
-  assert r.matches_played = 1 and r.wins = 1 and r.points_scored = 25,
-    'FAIL: Divya row wrong';
+  -- Bala: lost the first (12), tied Chetan at the top of the second (25).
+  select * into r from public.season_standings where player_name = 'Bala';
+  assert r.matches_played = 2 and r.wins = 0 and r.draws = 1 and r.losses = 1,
+    format('FAIL: Bala W/D/L was %s/%s/%s', r.wins, r.draws, r.losses);
+  assert r.points_scored = 37, format('FAIL: Bala scored %s, expected 37', r.points_scored);
+
+  -- Chetan: one match, tied at the top of it.
+  select * into r from public.season_standings where player_name = 'Chetan';
+  assert r.matches_played = 1 and r.wins = 0 and r.draws = 1 and r.losses = 0,
+    format('FAIL: Chetan W/D/L was %s/%s/%s', r.wins, r.draws, r.losses);
+  assert r.points_scored = 25, format('FAIL: Chetan scored %s, expected 25', r.points_scored);
+
+  -- Divya sat both out, so she is not on the table at all.
+  assert not exists (select 1 from public.season_standings where player_name = 'Divya'),
+    'FAIL: a player who has not played should not appear in the standings';
 end;
 $$;
 
@@ -160,7 +171,7 @@ declare v_leader text;
 begin
   select player_name into v_leader
     from public.season_standings
-   order by points_scored desc, point_diff desc, wins desc
+   order by points_scored desc, wins desc, best_score desc
    limit 1;
   assert v_leader = 'Ana', format('FAIL: leader was %s, expected Ana', v_leader);
 end;
@@ -177,30 +188,51 @@ do $$
 begin
   begin
     perform public.create_match(
-      'aaaaaaaa-0000-0000-0000-000000000001', 'singles',
-      array[:'ana',:'chetan']::uuid[],
-      array[:'bala']::uuid[],
-      25, 10);
-    raise exception 'FAIL: two players were accepted on one side of a singles match';
-  exception when check_violation then raise notice 'ok: singles roster size enforced';
+      'aaaaaaaa-0000-0000-0000-000000000001',
+      array[(select id from public.players where name = 'Ana')],
+      array[25]);
+    raise exception 'FAIL: a one-player match was accepted';
+  exception when check_violation then raise notice 'ok: two players minimum enforced';
   end;
 
   begin
     perform public.create_match(
-      'aaaaaaaa-0000-0000-0000-000000000001', 'singles',
-      array[:'ana']::uuid[],
-      array[:'ana']::uuid[],
-      25, 10);
-    raise exception 'FAIL: the same player was accepted on both sides';
+      'aaaaaaaa-0000-0000-0000-000000000001',
+      array[(select id from public.players where name = 'Ana'),
+            (select id from public.players where name = 'Bala'),
+            (select id from public.players where name = 'Chetan'),
+            (select id from public.players where name = 'Divya')],
+      array[25, 10, 8, 4]);
+    raise exception 'FAIL: a four-player match was accepted';
+  exception when check_violation then raise notice 'ok: three players maximum enforced';
+  end;
+
+  begin
+    perform public.create_match(
+      'aaaaaaaa-0000-0000-0000-000000000001',
+      array[(select id from public.players where name = 'Ana'),
+            (select id from public.players where name = 'Bala')],
+      array[25]);
+    raise exception 'FAIL: a match with a missing score was accepted';
+  exception when check_violation then raise notice 'ok: every player needs a score';
+  end;
+
+  begin
+    perform public.create_match(
+      'aaaaaaaa-0000-0000-0000-000000000001',
+      array[(select id from public.players where name = 'Ana'),
+            (select id from public.players where name = 'Ana')],
+      array[25, 10]);
+    raise exception 'FAIL: the same player was accepted twice';
   exception when check_violation then raise notice 'ok: duplicate player rejected';
   end;
 
   begin
     perform public.create_match(
-      'aaaaaaaa-0000-0000-0000-000000000001', 'singles',
-      array[:'ana']::uuid[],
-      array[:'bala']::uuid[],
-      -1, 10);
+      'aaaaaaaa-0000-0000-0000-000000000001',
+      array[(select id from public.players where name = 'Ana'),
+            (select id from public.players where name = 'Bala')],
+      array[-1, 10]);
     raise exception 'FAIL: a negative score was accepted';
   exception when check_violation then raise notice 'ok: score range enforced';
   end;
@@ -244,7 +276,7 @@ begin
 
   -- The old season's matches stay put, and its standings are untouched.
   assert (select count(*) from public.season_standings
-           where season_id = 'aaaaaaaa-0000-0000-0000-000000000001') = 4,
+           where season_id = 'aaaaaaaa-0000-0000-0000-000000000001') = 3,
     'FAIL: Season 1 standings changed when Season 2 opened';
   assert (select count(*) from public.season_standings where season_id = v_season_2) = 0,
     'FAIL: a brand new season should have empty standings';

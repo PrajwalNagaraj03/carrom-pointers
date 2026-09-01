@@ -1,15 +1,6 @@
 import { EmptyState } from "@/components/ui";
 import { DeleteMatchButton } from "@/components/delete-match-button";
-import type { MatchWithPlayers, MatchSide } from "@/lib/types/database";
-
-function namesOn(match: MatchWithPlayers, side: MatchSide): string {
-  const names = match.match_players
-    .filter((entry) => entry.side === side)
-    .map((entry) => entry.players?.name ?? "Unknown")
-    .sort((a, b) => a.localeCompare(b));
-
-  return names.length > 0 ? names.join(" & ") : "—";
-}
+import type { MatchWithPlayers } from "@/lib/types/database";
 
 const dayFormat = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
@@ -31,25 +22,28 @@ export function MatchList({
   return (
     <ul className="divide-y divide-border">
       {matches.map((match) => {
-        const aWon = match.side_a_score > match.side_b_score;
-        const bWon = match.side_b_score > match.side_a_score;
+        // Highest first, so the match reads as a small result table.
+        const scores = [...match.match_players].sort((a, b) => b.points - a.points);
+        const best = scores[0]?.points ?? 0;
 
         return (
           <li key={match.id} className="flex items-start gap-3 px-4 py-3 sm:px-5">
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                <span className={aWon ? "font-semibold" : "text-muted"}>
-                  {namesOn(match, "A")}
-                </span>
-                <span className="numeric text-sm text-muted">
-                  {match.side_a_score}–{match.side_b_score}
-                </span>
-                <span className={bWon ? "font-semibold" : "text-muted"}>
-                  {namesOn(match, "B")}
-                </span>
+              <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                {scores.map((entry, index) => (
+                  <span
+                    key={entry.players?.id ?? index}
+                    className={`flex items-baseline gap-1.5 ${
+                      entry.points === best ? "font-semibold" : "text-muted"
+                    }`}
+                  >
+                    <span className="truncate">{entry.players?.name ?? "Unknown"}</span>
+                    <span className="numeric">{entry.points}</span>
+                  </span>
+                ))}
               </div>
               <p className="mt-1 text-xs text-muted">
-                {dayFormat.format(new Date(match.played_at))} · {match.format}
+                {dayFormat.format(new Date(match.played_at))} · {scores.length} players
                 {match.notes && ` · ${match.notes}`}
               </p>
             </div>

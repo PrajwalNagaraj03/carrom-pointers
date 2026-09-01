@@ -5,7 +5,7 @@ import { useActionState, useState } from "react";
 import { Button, Field, FormError, inputClass } from "@/components/ui";
 import { logMatch } from "@/lib/actions/matches";
 import { initialActionState } from "@/lib/actions/shared";
-import type { MatchFormat, Player, Season } from "@/lib/types/database";
+import type { Player, Season } from "@/lib/types/database";
 
 function today(): string {
   const now = new Date();
@@ -24,9 +24,6 @@ export function MatchForm({
   defaultSeasonId: string;
 }) {
   const [state, action, pending] = useActionState(logMatch, initialActionState);
-  // Format lives out here so it survives a save -- you usually log several
-  // boards of the same kind in a row.
-  const [format, setFormat] = useState<MatchFormat>("singles");
 
   if (players.length < 2) {
     return (
@@ -41,53 +38,22 @@ export function MatchForm({
     <form action={action} className="flex flex-col gap-5 p-4 sm:p-5">
       <FormError message={state.error} />
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Season">
-          <select name="season_id" defaultValue={defaultSeasonId} className={inputClass}>
-            {seasons.map((season) => (
-              <option key={season.id} value={season.id}>
-                {season.name}
-                {season.is_active ? " (current)" : ""}
-              </option>
-            ))}
-          </select>
-        </Field>
-
-        <Field label="Format">
-          <div className="flex gap-2">
-            {(["singles", "doubles"] as const).map((option) => (
-              <label
-                key={option}
-                className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-center text-sm capitalize transition-colors ${
-                  format === option
-                    ? "border-accent bg-accent-soft font-medium text-accent"
-                    : "border-border text-muted hover:bg-surface-muted"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="format"
-                  value={option}
-                  checked={format === option}
-                  onChange={() => setFormat(option)}
-                  className="sr-only"
-                />
-                {option}
-              </label>
-            ))}
-          </div>
-        </Field>
-      </div>
+      <Field label="Season">
+        <select name="season_id" defaultValue={defaultSeasonId} className={inputClass}>
+          {seasons.map((season) => (
+            <option key={season.id} value={season.id}>
+              {season.name}
+              {season.is_active ? " (current)" : ""}
+            </option>
+          ))}
+        </select>
+      </Field>
 
       {/*
-        Keying on the last save is what clears the roster and scores: React
-        throws the subtree away and mounts a fresh one, no reset effect needed.
+        Keying on the last save is what clears the board: React throws the
+        subtree away and mounts a fresh one, no reset effect needed.
       */}
-      <MatchRoster
-        key={`${format}-${state.savedAt ?? "new"}`}
-        format={format}
-        players={players}
-      />
+      <Scoreboard key={state.savedAt ?? "new"} players={players} />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Played on">
@@ -123,101 +89,77 @@ export function MatchForm({
 }
 
 /**
- * Who played and what they scored. Held apart from the rest of the form so the
- * whole thing can be reset by remounting it.
+ * Who played and what they finished on. Everyone starts ticked, because two or
+ * three of you is the whole roster -- untick whoever sat this one out.
+ *
+ * Each points box is named after its player (points_<uuid>) rather than being
+ * one of two positional lists, so a name and a score cannot drift apart.
  */
-function MatchRoster({
-  format,
-  players,
-}: {
-  format: MatchFormat;
-  players: Player[];
-}) {
-  const perSide = format === "singles" ? 1 : 2;
-  const [sideA, setSideA] = useState<string[]>(Array(perSide).fill(""));
-  const [sideB, setSideB] = useState<string[]>(Array(perSide).fill(""));
+function Scoreboard({ players }: { players: Player[] }) {
+  const [playing, setPlaying] = useState<string[]>(() =>
+    players.slice(0, 3).map((player) => player.id),
+  );
 
-  const taken = new Set([...sideA, ...sideB].filter(Boolean));
-
-  function playerSelect(side: "A" | "B", index: number) {
-    const values = side === "A" ? sideA : sideB;
-    const setValues = side === "A" ? setSideA : setSideB;
-
-    return (
-      <select
-        key={index}
-        name={side === "A" ? "side_a" : "side_b"}
-        value={values[index] ?? ""}
-        onChange={(event) => {
-          const next = [...values];
-          next[index] = event.target.value;
-          setValues(next);
-        }}
-        className={inputClass}
-        aria-label={`Side ${side}, player ${index + 1}`}
-        required
-      >
-        <option value="">Choose a player…</option>
-        {players.map((player) => (
-          <option
-            key={player.id}
-            value={player.id}
-            // Already picked elsewhere in this match; the database refuses it too.
-            disabled={taken.has(player.id) && values[index] !== player.id}
-          >
-            {player.name}
-          </option>
-        ))}
-      </select>
+  function toggle(playerId: string) {
+    setPlaying((current) =>
+      current.includes(playerId)
+        ? current.filter((id) => id !== playerId)
+        : [...current, playerId],
     );
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-[1fr_auto_1fr] sm:items-start">
-      <SidePanel label="Side A" scoreName="side_a_score">
-        {Array.from({ length: perSide }, (_, index) => playerSelect("A", index))}
-      </SidePanel>
-
-      <div className="hidden self-center pt-10 text-sm font-medium text-muted sm:block">
-        vs
-      </div>
-
-      <SidePanel label="Side B" scoreName="side_b_score">
-        {Array.from({ length: perSide }, (_, index) => playerSelect("B", index))}
-      </SidePanel>
-    </div>
-  );
-}
-
-function SidePanel({
-  label,
-  scoreName,
-  children,
-}: {
-  label: string;
-  scoreName: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <fieldset className="rounded-lg border border-border bg-surface-muted/50 p-3">
-      <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-muted">
-        {label}
+    <fieldset className="flex flex-col gap-2">
+      <legend className="mb-1 text-sm font-medium">
+        Who played, and their points
+        <span className="ml-2 text-xs font-normal text-muted">
+          {playing.length === 2 || playing.length === 3
+            ? `${playing.length} playing`
+            : "pick 2 or 3"}
+        </span>
       </legend>
-      <div className="flex flex-col gap-2">
-        {children}
-        <Field label="Score">
-          <input
-            type="number"
-            name={scoreName}
-            inputMode="numeric"
-            min={0}
-            max={100}
-            required
-            defaultValue=""
-            className={`${inputClass} numeric`}
-          />
-        </Field>
-      </div>
+
+      {players.map((player) => {
+        const isPlaying = playing.includes(player.id);
+
+        return (
+          <div
+            key={player.id}
+            className={`flex items-center gap-3 rounded-lg border px-3 py-2 transition-colors ${
+              isPlaying ? "border-accent/40 bg-accent-soft/40" : "border-border"
+            }`}
+          >
+            <label className="flex flex-1 cursor-pointer items-center gap-2.5 truncate text-sm">
+              <input
+                type="checkbox"
+                name="player_id"
+                value={player.id}
+                checked={isPlaying}
+                onChange={() => toggle(player.id)}
+                className="size-4 accent-[var(--accent)]"
+              />
+              <span className={`truncate ${isPlaying ? "font-medium" : "text-muted"}`}>
+                {player.name}
+              </span>
+            </label>
+
+            <input
+              type="number"
+              name={`points_${player.id}`}
+              inputMode="numeric"
+              min={0}
+              max={999}
+              step={1}
+              required={isPlaying}
+              disabled={!isPlaying}
+              defaultValue=""
+              placeholder="0"
+              aria-label={`Points for ${player.name}`}
+              className={`${inputClass} numeric w-24 text-right disabled:opacity-40`}
+            />
+          </div>
+        );
+      })}
     </fieldset>
   );
 }

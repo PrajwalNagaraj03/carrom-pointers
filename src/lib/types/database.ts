@@ -89,9 +89,6 @@ export type Database = {
           id: string;
           season_id: string;
           played_at: string;
-          format: MatchFormat;
-          side_a_score: number;
-          side_b_score: number;
           notes: string | null;
           created_by: string | null;
           created_at: string;
@@ -100,9 +97,6 @@ export type Database = {
           id?: string;
           season_id: string;
           played_at?: string;
-          format: MatchFormat;
-          side_a_score: number;
-          side_b_score: number;
           notes?: string | null;
           created_by?: string | null;
           created_at?: string;
@@ -111,9 +105,6 @@ export type Database = {
           id?: string;
           season_id?: string;
           played_at?: string;
-          format?: MatchFormat;
-          side_a_score?: number;
-          side_b_score?: number;
           notes?: string | null;
           created_by?: string | null;
           created_at?: string;
@@ -132,17 +123,17 @@ export type Database = {
         Row: {
           match_id: string;
           player_id: string;
-          side: MatchSide;
+          points: number;
         };
         Insert: {
           match_id: string;
           player_id: string;
-          side: MatchSide;
+          points: number;
         };
         Update: {
           match_id?: string;
           player_id?: string;
-          side?: MatchSide;
+          points?: number;
         };
         Relationships: [
           {
@@ -171,11 +162,10 @@ export type Database = {
           is_active: boolean;
           matches_played: number;
           wins: number;
-          losses: number;
           draws: number;
+          losses: number;
           points_scored: number;
-          points_conceded: number;
-          point_diff: number;
+          best_score: number;
         };
         Relationships: [];
       };
@@ -184,11 +174,8 @@ export type Database = {
       create_match: {
         Args: {
           p_season_id: string;
-          p_format: MatchFormat;
-          p_side_a: string[];
-          p_side_b: string[];
-          p_side_a_score: number;
-          p_side_b_score: number;
+          p_players: string[];
+          p_points: number[];
           p_played_at?: string;
           p_notes?: string | null;
         };
@@ -221,19 +208,16 @@ export type Database = {
   };
 };
 
-export type MatchFormat = "singles" | "doubles";
-export type MatchSide = "A" | "B";
-
 export type Player = Database["public"]["Tables"]["players"]["Row"];
 export type Season = Database["public"]["Tables"]["seasons"]["Row"];
 export type Match = Database["public"]["Tables"]["matches"]["Row"];
 export type AppMember = Database["public"]["Tables"]["app_members"]["Row"];
 export type StandingsRow = Database["public"]["Views"]["season_standings"]["Row"];
 
-/** A match with its roster resolved to player names, as the match list renders it. */
+/** A match with its scorers resolved to player names, as the match list renders it. */
 export type MatchWithPlayers = Match & {
   match_players: Array<{
-    side: MatchSide;
+    points: number;
     players: Pick<Player, "id" | "name"> | null;
   }>;
 };
