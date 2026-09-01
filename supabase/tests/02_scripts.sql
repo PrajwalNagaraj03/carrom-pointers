@@ -32,6 +32,39 @@ begin
     'FAIL: the password was stored in plaintext';
   assert v_user.encrypted_password = crypt('change-this-password', v_user.encrypted_password),
     'FAIL: the stored hash does not verify the password';
+
+  -- The columns GoTrue cannot read as NULL. Leaving any of these null is what
+  -- makes sign-in fail with a 500 that looks like a wrong password.
+  assert v_user.confirmation_token is not null, 'FAIL: confirmation_token left NULL';
+  assert v_user.recovery_token is not null, 'FAIL: recovery_token left NULL';
+  assert v_user.email_change is not null, 'FAIL: email_change left NULL';
+  assert v_user.email_change_token_new is not null, 'FAIL: email_change_token_new left NULL';
+  assert v_user.email_change_token_current is not null, 'FAIL: email_change_token_current left NULL';
+  assert v_user.phone_change is not null, 'FAIL: phone_change left NULL';
+  assert v_user.phone_change_token is not null, 'FAIL: phone_change_token left NULL';
+  assert v_user.reauthentication_token is not null, 'FAIL: reauthentication_token left NULL';
+end;
+$$;
+
+\echo '== repair-logins.sql fixes a login created before that blanking existed'
+update auth.users
+   set confirmation_token = null,
+       recovery_token = null,
+       reauthentication_token = null
+ where email = 'first.player@example.com';
+
+\i supabase/scripts/repair-logins.sql
+
+do $$
+declare v_user auth.users%rowtype;
+begin
+  select * into v_user from auth.users where email = 'first.player@example.com';
+  assert v_user.confirmation_token = '', 'FAIL: repair left confirmation_token NULL';
+  assert v_user.recovery_token = '', 'FAIL: repair left recovery_token NULL';
+  assert v_user.reauthentication_token = '', 'FAIL: repair left reauthentication_token NULL';
+  -- Repair must not disturb the password.
+  assert v_user.encrypted_password = crypt('change-this-password', v_user.encrypted_password),
+    'FAIL: repair changed the password hash';
 end;
 $$;
 

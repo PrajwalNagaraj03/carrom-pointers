@@ -111,6 +111,7 @@ The other two scripts:
 | --- | --- |
 | `supabase/scripts/list-logins.sql` | Who is allowlisted, who has a login, when they last signed in |
 | `supabase/scripts/reset-password.sql` | Someone is locked out and cannot use /account |
+| `supabase/scripts/repair-logins.sql` | Sign-in insists the password is wrong when it is not (see below) |
 
 **Never commit a password.** Edit these files, run them, then undo your edit —
 `git checkout supabase/scripts/add-login.sql`. This repository is public.
@@ -163,6 +164,25 @@ Two things worth knowing:
   internet may as well not be framed or indexed.
 
 ---
+
+## If sign-in says the password is wrong when it is not
+
+Check what the server actually said:
+
+```bash
+curl -i -X POST "$NEXT_PUBLIC_SUPABASE_URL/auth/v1/token?grant_type=password" \
+  -H "apikey: $NEXT_PUBLIC_SUPABASE_ANON_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com","password":"your-password"}'
+```
+
+- **400 `invalid_credentials`** — the password really is wrong. Use
+  `reset-password.sql`.
+- **500 `Database error querying schema`** — the password is fine. GoTrue reads
+  several `auth.users` columns into non-nullable Go strings, and a login created
+  by SQL before this was handled left them `NULL`. Run
+  `supabase/scripts/repair-logins.sql` and try again. `add-login.sql` blanks them
+  itself now, so new logins are unaffected.
 
 ## Checking it works
 

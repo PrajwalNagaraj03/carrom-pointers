@@ -38,9 +38,27 @@ export async function signIn(
   });
 
   if (error) {
-    // Deliberately vague: a precise message would say which of the three
-    // addresses exist.
-    return { error: "That email and password do not match an account." };
+    // A rejected password is answered vaguely on purpose -- a precise message
+    // would say which of the three addresses exist. Anything else is a fault on
+    // our side, and saying "wrong password" for those wastes hours: report it.
+    const badCredentials =
+      error.code === "invalid_credentials" ||
+      error.code === "email_not_confirmed" ||
+      error.status === 400;
+
+    if (badCredentials) {
+      return { error: "That email and password do not match an account." };
+    }
+
+    console.error("[signIn] unexpected auth failure", {
+      status: error.status,
+      code: error.code,
+      message: error.message,
+    });
+
+    return {
+      error: `Sign-in failed (${error.status ?? "no status"}): ${error.message}`,
+    };
   }
 
   redirect("/");

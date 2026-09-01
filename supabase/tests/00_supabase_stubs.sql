@@ -33,7 +33,17 @@ create table if not exists auth.users (
   raw_app_meta_data jsonb,
   raw_user_meta_data jsonb,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  -- Nullable in GoTrue's own schema, but read into non-nullable Go strings.
+  -- A NULL here is what makes a hand-inserted user fail sign-in with a 500.
+  confirmation_token varchar(255),
+  recovery_token varchar(255),
+  email_change varchar(255),
+  email_change_token_new varchar(255),
+  email_change_token_current varchar(255),
+  phone_change text,
+  phone_change_token varchar(255),
+  reauthentication_token varchar(255)
 );
 
 create table if not exists auth.identities (

@@ -22,6 +22,7 @@ declare
   -- -------------------------------------------------------------------------
 
   v_user_id uuid := gen_random_uuid();
+  v_column  text;
 begin
   v_email := lower(btrim(v_email));
 
@@ -73,6 +74,32 @@ begin
     now(),
     now()
   );
+
+  -- GoTrue reads these columns into plain (non-nullable) Go strings. A row
+  -- inserted by hand leaves them NULL, and sign-in then fails with a 500
+  -- "Database error querying schema" -- which looks exactly like a wrong
+  -- password from the outside. Blank them.
+  --
+  -- Driven off information_schema rather than a fixed column list, so this keeps
+  -- working when GoTrue's schema gains or loses one of them.
+  for v_column in
+    select column_name
+      from information_schema.columns
+     where table_schema = 'auth'
+       and table_name = 'users'
+       and is_nullable = 'YES'
+       and data_type in ('character varying', 'text')
+       and column_name in (
+             'confirmation_token', 'recovery_token', 'email_change',
+             'email_change_token_new', 'email_change_token_current',
+             'phone_change', 'phone_change_token', 'reauthentication_token'
+           )
+  loop
+    execute format(
+      'update auth.users set %I = %L where id = %L and %I is null',
+      v_column, '', v_user_id, v_column
+    );
+  end loop;
 
   raise notice 'Added % -- they can sign in now and change their password at /account.', v_email;
 end;
