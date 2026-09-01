@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+/*
+ * Carrom board palette: pale maple playing surface, espresso frame, and the
+ * red of the queen for anything that needs to win your attention.
+ */
+:root {
+  --background: #f6f1e7;
+  --surface: #fffdf8;
+  --surface-muted: #efe7d8;
+  --border: #ded1bb;
+  --foreground: #2b2118;
+  --muted: #7a6a58;
+  --accent: #b03a2e;
+  --accent-soft: #f5e2de;
+  --positive: #2f6b4f;
+  --negative: #a2453a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #17130f;
+    --surface: #211b15;
+    --surface-muted: #2b231b;
+    --border: #3b3025;
+    --foreground: #f2e9dc;
+    --muted: #a8967f;
+    --accent: #e0705d;
+    --accent-soft: #3a221d;
+    --positive: #6fbf95;
+    --negative: #e08578;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* Tabular figures keep score columns from jittering as numbers change. */
+.numeric {
+  font-variant-numeric: tabular-nums;
+}
