@@ -10,6 +10,11 @@ behind it. Sign-in is email and password, limited to three approved addresses.
 
 ## How the data works
 
+The **players are the three people who can sign in** — there is no separate
+roster to keep up to date and no way to add one from the app. A row in
+`app_members` creates the matching player, renames it when the display name
+changes, and deactivating is the only thing the Players page can do.
+
 A **season** holds many **matches**. A match has two sides, A and B, each with a
 board score, and a roster in `match_players` — one player per side for singles,
 two for doubles. Nothing about standings is stored: the `season_standings` view
@@ -37,8 +42,10 @@ Three independent locks, so no single mistake opens the data:
 
 Adding a person is two steps in the Supabase dashboard: a row in `app_members`
 first, then a user under **Authentication → Users**. In that order — the trigger
-rejects the user otherwise. There is deliberately no sign-up page and no UI for
-managing the allowlist.
+rejects the user otherwise. The `app_members` row is also what creates their
+player, so they show up on the Players page and in the match form with no
+further work. There is deliberately no sign-up page and no UI for managing the
+allowlist.
 
 Passwords are Supabase's business, not this app's. GoTrue stores a bcrypt hash
 in `auth.users.encrypted_password` and verifies it at sign-in; no password
@@ -72,12 +79,14 @@ npx supabase link --project-ref <your-project-ref>
 npx supabase db push
 ```
 
-Or paste `supabase/migrations/0001` → `0004` into the SQL editor in order.
+Or paste `supabase/migrations/0001` → `0005` into the SQL editor in order.
 
 ### 3. Fill in the allowlist
 
 Edit `supabase/seed.sql`, replace the placeholder emails with the three real
-addresses, and run it in the SQL editor. Every address must be lowercase.
+addresses, and run it in the SQL editor. Every address must be lowercase. Each
+one becomes a player named after its `display_name`; there is no player list to
+fill in separately.
 
 ```sql
 insert into public.app_members (email, display_name) values
@@ -98,7 +107,8 @@ v_password     text := 'something-only-they-know';
 ```
 
 One run does both halves in one transaction — the `app_members` row that decides
-what they can see, and the `auth.users` login that proves who they are. Doing it
+what they can see (and puts them on the board as a player), and the `auth.users`
+login that proves who they are. Doing it
 by hand in the dashboard means getting that order right; the script cannot get
 it wrong. The password is bcrypt-hashed by `pgcrypto` on the way in, so the
 plaintext is never stored.
@@ -189,7 +199,8 @@ curl -i -X POST "$NEXT_PUBLIC_SUPABASE_URL/auth/v1/token?grant_type=password" \
 1. Sign in with one of the three accounts — you land on the dashboard.
 2. Try adding a user with an unlisted address in the dashboard — Supabase
    refuses it, which is the signup trigger doing its job.
-3. Add players, start a season, log a singles match and a doubles match.
+3. The Players page already lists the three accounts — nothing to add. Start a
+   season, log a singles match and a doubles match.
 4. The leaderboard totals match what you entered, ordered by points scored.
 5. Start a second season — its table is empty and the first season's is untouched.
 
@@ -230,9 +241,10 @@ src/
     supabase/                  browser and server client factories
     types/database.ts          typed mirror of the migrations
 supabase/
-  migrations/                  0001 schema, 0002 standings view, 0003 RLS, 0004 functions
+  migrations/                  0001 schema, 0002 standings view, 0003 RLS, 0004 functions,
+                               0005 players provisioned from the allowlist
   scripts/                     add a login, reset a password, list who has one
-  seed.sql                     the three approved accounts
+  seed.sql                     the three approved accounts -- and so the players
   tests/                       local Postgres harness -- also runs scripts/ verbatim
 ```
 

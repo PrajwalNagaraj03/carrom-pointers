@@ -30,21 +30,32 @@ export type Database = {
           id: string;
           name: string;
           is_active: boolean;
+          member_email: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
           name: string;
           is_active?: boolean;
+          member_email?: string | null;
           created_at?: string;
         };
         Update: {
           id?: string;
           name?: string;
           is_active?: boolean;
+          member_email?: string | null;
           created_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "players_member_email_fkey";
+            columns: ["member_email"];
+            isOneToOne: true;
+            referencedRelation: "app_members";
+            referencedColumns: ["email"];
+          },
+        ];
       };
       seasons: {
         Row: {
@@ -201,6 +212,10 @@ export type Database = {
       is_member: {
         Args: Record<string, never>;
         Returns: boolean;
+      };
+      ensure_member_player: {
+        Args: { p_email: string; p_display_name: string | null };
+        Returns: string;
       };
     };
   };

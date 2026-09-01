@@ -6,33 +6,11 @@ import { z } from "zod";
 import { requireMember } from "@/lib/auth";
 import { describe, saved, type ActionState } from "@/lib/actions/shared";
 
-const nameSchema = z
-  .string()
-  .trim()
-  .min(1, "Give the player a name.")
-  .max(40, "That name is too long.");
-
-export async function addPlayer(
-  _previous: ActionState,
-  formData: FormData,
-): Promise<ActionState> {
-  const { supabase } = await requireMember();
-
-  const parsed = nameSchema.safeParse(formData.get("name"));
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0].message };
-  }
-
-  const { error } = await supabase.from("players").insert({ name: parsed.data });
-
-  if (error) {
-    return { error: describe(error, "Could not add that player.") };
-  }
-
-  revalidatePath("/", "layout");
-  return saved();
-}
-
+/**
+ * Deactivating and reactivating is the only write the app has on players: a
+ * player row is created by the database when someone joins the allowlist (see
+ * migration 0005), never from here.
+ */
 export async function setPlayerActive(
   _previous: ActionState,
   formData: FormData,

@@ -1,39 +1,9 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState } from "react";
 
-import { Button, FormError, inputClass } from "@/components/ui";
-import { addPlayer, setPlayerActive } from "@/lib/actions/players";
+import { setPlayerActive } from "@/lib/actions/players";
 import { initialActionState } from "@/lib/actions/shared";
-
-export function AddPlayerForm() {
-  const [state, action, pending] = useActionState(addPlayer, initialActionState);
-  const formRef = useRef<HTMLFormElement>(null);
-
-  useEffect(() => {
-    if (state.savedAt) formRef.current?.reset();
-  }, [state.savedAt]);
-
-  return (
-    <form ref={formRef} action={action} className="flex flex-col gap-3 p-4 sm:p-5">
-      <FormError message={state.error} />
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <input
-          type="text"
-          name="name"
-          required
-          maxLength={40}
-          placeholder="Player name"
-          aria-label="Player name"
-          className={inputClass}
-        />
-        <Button type="submit" disabled={pending} className="sm:w-auto">
-          {pending ? "Adding…" : "Add player"}
-        </Button>
-      </div>
-    </form>
-  );
-}
 
 export function TogglePlayerButton({
   playerId,

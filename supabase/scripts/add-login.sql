@@ -4,8 +4,8 @@
 -- Editor. Run it once per person.
 --
 -- It does both halves in one transaction: the allowlist row in app_members
--- (which decides what they can see) and the login in auth.users (which proves
--- who they are). Doing it by hand in the dashboard means getting that order
+-- (which decides what they can see, and which puts them on the board as a
+-- player) and the login in auth.users (which proves who they are). Doing it by hand in the dashboard means getting that order
 -- right; here you cannot get it wrong.
 --
 -- The email only has to LOOK like an email. Nothing is ever sent to it, so
@@ -101,6 +101,6 @@ begin
     );
   end loop;
 
-  raise notice 'Added % -- they can sign in now and change their password at /account.', v_email;
+  raise notice 'Added % -- they can sign in now, they are on the Players page already, and they can change their password at /account.', v_email;
 end;
 $$;

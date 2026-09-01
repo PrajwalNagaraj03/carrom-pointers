@@ -31,7 +31,8 @@ export function MatchForm({
   if (players.length < 2) {
     return (
       <p className="px-4 py-8 text-center text-sm text-muted sm:px-5">
-        Add at least two active players before logging a match.
+        Two people need a login before a match can be logged — players are
+        whoever can sign in.
       </p>
     );
   }

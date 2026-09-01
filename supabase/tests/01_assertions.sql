@@ -9,6 +9,66 @@
 insert into public.app_members (email, display_name) values ('member@example.com', 'Member');
 insert into auth.users (id, email) values ('11111111-1111-1111-1111-111111111111', 'member@example.com');
 
+\echo '== joining the allowlist creates the player'
+do $$
+declare r record;
+begin
+  select * into r from public.players where member_email = 'member@example.com';
+  assert found, 'FAIL: no player was created for the new member';
+  assert r.name = 'Member', format('FAIL: player should be named after display_name, got %s', r.name);
+  assert r.is_active, 'FAIL: a new member should start active';
+end;
+$$;
+
+\echo '== a member with no display name plays under the local part of their email'
+insert into public.app_members (email) values ('nameless@example.com');
+do $$
+begin
+  assert exists (select 1 from public.players where member_email = 'nameless@example.com' and name = 'nameless'),
+    'FAIL: expected a player named after the email local part';
+end;
+$$;
+
+\echo '== renaming a member renames their player'
+update public.app_members set display_name = 'Nameless' where email = 'nameless@example.com';
+do $$
+begin
+  assert exists (select 1 from public.players where member_email = 'nameless@example.com' and name = 'Nameless'),
+    'FAIL: the player was not renamed with the member';
+  assert (select count(*) from public.players where member_email = 'nameless@example.com') = 1,
+    'FAIL: renaming a member created a second player';
+end;
+$$;
+
+\echo '== leaving the allowlist keeps the player but hides them from new matches'
+delete from public.app_members where email = 'nameless@example.com';
+do $$
+declare r record;
+begin
+  select * into r from public.players where name = 'Nameless';
+  assert found, 'FAIL: removing a member deleted their player and their history with it';
+  assert not r.is_active, 'FAIL: a removed member should be deactivated';
+  assert r.member_email is null, 'FAIL: the player should have been unlinked from the allowlist';
+end;
+$$;
+
+\echo '== an existing player of the same name is adopted, not duplicated'
+begin;
+insert into public.players (id, name) values ('cccccccc-0000-0000-0000-000000000001', 'Legacy');
+insert into public.app_members (email, display_name) values ('legacy@example.com', 'Legacy');
+do $$
+begin
+  assert (select count(*) from public.players where lower(name) = 'legacy') = 1,
+    'FAIL: a second Legacy player was created instead of adopting the first';
+  assert exists (
+    select 1 from public.players
+     where id = 'cccccccc-0000-0000-0000-000000000001'
+       and member_email = 'legacy@example.com'
+  ), 'FAIL: the existing player was not linked to the member';
+end;
+$$;
+rollback;
+
 \echo '== signup gate rejects an email that is not on the access list'
 do $$
 begin
@@ -27,31 +87,40 @@ insert into auth.users (id, email) values ('33333333-3333-3333-3333-333333333333
   on conflict (email) do nothing;
 
 -- ------------------------------------------------------------- member writes --
-\echo '== a member can set up a season, players and matches'
+-- Players come from the allowlist now, so this is how four of them appear.
+insert into public.app_members (email, display_name) values
+  ('ana@example.com',    'Ana'),
+  ('bala@example.com',   'Bala'),
+  ('chetan@example.com', 'Chetan'),
+  ('divya@example.com',  'Divya');
+
+select
+  (select id from public.players where name = 'Ana')    as ana,
+  (select id from public.players where name = 'Bala')   as bala,
+  (select id from public.players where name = 'Chetan') as chetan,
+  (select id from public.players where name = 'Divya')  as divya
+\gset
+
+\echo '== a member can set up a season and log matches'
 begin;
 set local role authenticated;
 set local request.jwt.claims = :'MEMBER_JWT';
 
 insert into public.seasons (id, name) values
   ('aaaaaaaa-0000-0000-0000-000000000001', 'Season 1');
-insert into public.players (id, name) values
-  ('bbbbbbbb-0000-0000-0000-000000000001', 'Ana'),
-  ('bbbbbbbb-0000-0000-0000-000000000002', 'Bala'),
-  ('bbbbbbbb-0000-0000-0000-000000000003', 'Chetan'),
-  ('bbbbbbbb-0000-0000-0000-000000000004', 'Divya');
 
 -- singles: Ana 25, Bala 12
 select public.create_match(
   'aaaaaaaa-0000-0000-0000-000000000001', 'singles',
-  array['bbbbbbbb-0000-0000-0000-000000000001']::uuid[],
-  array['bbbbbbbb-0000-0000-0000-000000000002']::uuid[],
+  array[:'ana']::uuid[],
+  array[:'bala']::uuid[],
   25, 12);
 
 -- doubles: Ana+Chetan 21, Bala+Divya 25
 select public.create_match(
   'aaaaaaaa-0000-0000-0000-000000000001', 'doubles',
-  array['bbbbbbbb-0000-0000-0000-000000000001','bbbbbbbb-0000-0000-0000-000000000003']::uuid[],
-  array['bbbbbbbb-0000-0000-0000-000000000002','bbbbbbbb-0000-0000-0000-000000000004']::uuid[],
+  array[:'ana',:'chetan']::uuid[],
+  array[:'bala',:'divya']::uuid[],
   21, 25);
 
 do $$
@@ -109,8 +178,8 @@ begin
   begin
     perform public.create_match(
       'aaaaaaaa-0000-0000-0000-000000000001', 'singles',
-      array['bbbbbbbb-0000-0000-0000-000000000001','bbbbbbbb-0000-0000-0000-000000000003']::uuid[],
-      array['bbbbbbbb-0000-0000-0000-000000000002']::uuid[],
+      array[:'ana',:'chetan']::uuid[],
+      array[:'bala']::uuid[],
       25, 10);
     raise exception 'FAIL: two players were accepted on one side of a singles match';
   exception when check_violation then raise notice 'ok: singles roster size enforced';
@@ -119,8 +188,8 @@ begin
   begin
     perform public.create_match(
       'aaaaaaaa-0000-0000-0000-000000000001', 'singles',
-      array['bbbbbbbb-0000-0000-0000-000000000001']::uuid[],
-      array['bbbbbbbb-0000-0000-0000-000000000001']::uuid[],
+      array[:'ana']::uuid[],
+      array[:'ana']::uuid[],
       25, 10);
     raise exception 'FAIL: the same player was accepted on both sides';
   exception when check_violation then raise notice 'ok: duplicate player rejected';
@@ -129,8 +198,8 @@ begin
   begin
     perform public.create_match(
       'aaaaaaaa-0000-0000-0000-000000000001', 'singles',
-      array['bbbbbbbb-0000-0000-0000-000000000001']::uuid[],
-      array['bbbbbbbb-0000-0000-0000-000000000002']::uuid[],
+      array[:'ana']::uuid[],
+      array[:'bala']::uuid[],
       -1, 10);
     raise exception 'FAIL: a negative score was accepted';
   exception when check_violation then raise notice 'ok: score range enforced';
@@ -189,6 +258,25 @@ begin
   perform public.close_season('aaaaaaaa-0000-0000-0000-000000000001');
   assert (select count(*) from public.seasons where is_active) = 0,
     'FAIL: closing the last season should leave none active';
+end;
+$$;
+rollback;
+
+\echo '== a member cannot invent a player'
+begin;
+set local role authenticated;
+set local request.jwt.claims = :'MEMBER_JWT';
+do $$
+begin
+  begin
+    insert into public.players (name) values ('Ringer');
+    raise exception 'FAIL: a member added a player by hand';
+  exception when insufficient_privilege then raise notice 'ok: players come from the allowlist only';
+  end;
+
+  -- Deactivating still works; it is the one write the Players page makes.
+  update public.players set is_active = false where name = 'Divya';
+  assert found, 'FAIL: a member should still be able to deactivate a player';
 end;
 $$;
 rollback;

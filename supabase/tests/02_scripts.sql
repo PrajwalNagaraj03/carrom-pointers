@@ -24,6 +24,12 @@ begin
   assert exists (select 1 from public.app_members where email = 'first.player@example.com'),
     'FAIL: add-login.sql did not add the allowlist row';
 
+  -- The allowlist row is what puts them on the board; there is no separate step.
+  assert exists (
+    select 1 from public.players
+     where member_email = 'first.player@example.com' and name = 'First Player'
+  ), 'FAIL: adding a login did not create the player';
+
   select count(*) into v_identity_count from auth.identities where user_id = v_user.id;
   assert v_identity_count = 1, format('FAIL: expected 1 identity row, got %s', v_identity_count);
 
