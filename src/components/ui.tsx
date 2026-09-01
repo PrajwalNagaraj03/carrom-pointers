@@ -80,8 +80,16 @@ export function Field({
   );
 }
 
-export const inputClass =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent focus:ring-2 focus:ring-accent/25";
+/**
+ * Everything but the width, for the fields that are not full-bleed. Appending a
+ * narrower w-* to inputClass does not work: both are width utilities and which
+ * one wins is decided by their order in the generated stylesheet, not by the
+ * order you wrote them in.
+ */
+export const inputBaseClass =
+  "rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent focus:ring-2 focus:ring-accent/25";
+
+export const inputClass = `w-full ${inputBaseClass}`;
 
 export function FormError({ message }: { message?: string }) {
   if (!message) return null;

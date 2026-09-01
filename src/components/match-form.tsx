@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 
-import { Button, Field, FormError, inputClass } from "@/components/ui";
+import { Button, Field, FormError, inputBaseClass, inputClass } from "@/components/ui";
 import { logMatch } from "@/lib/actions/matches";
 import { initialActionState } from "@/lib/actions/shared";
 import type { Player, Season } from "@/lib/types/database";
@@ -129,14 +129,14 @@ function Scoreboard({ players }: { players: Player[] }) {
               isPlaying ? "border-accent/40 bg-accent-soft/40" : "border-border"
             }`}
           >
-            <label className="flex flex-1 cursor-pointer items-center gap-2.5 truncate text-sm">
+            <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 text-sm">
               <input
                 type="checkbox"
                 name="player_id"
                 value={player.id}
                 checked={isPlaying}
                 onChange={() => toggle(player.id)}
-                className="size-4 accent-[var(--accent)]"
+                className="size-4 shrink-0 accent-[var(--accent)]"
               />
               <span className={`truncate ${isPlaying ? "font-medium" : "text-muted"}`}>
                 {player.name}
@@ -155,7 +155,7 @@ function Scoreboard({ players }: { players: Player[] }) {
               defaultValue=""
               placeholder="0"
               aria-label={`Points for ${player.name}`}
-              className={`${inputClass} numeric w-24 text-right disabled:opacity-40`}
+              className={`${inputBaseClass} numeric w-24 shrink-0 text-right disabled:opacity-40`}
             />
           </div>
         );
