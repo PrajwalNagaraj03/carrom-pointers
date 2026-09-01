@@ -38,6 +38,17 @@ export function MatchForm({
     <form action={action} className="flex flex-col gap-5 p-4 sm:p-5">
       <FormError message={state.error} />
 
+      <Field label="Match name" hint="Optional — e.g. 'Friday decider'.">
+        <input
+          key={state.savedAt ?? "new"}
+          type="text"
+          name="name"
+          maxLength={60}
+          placeholder="Untitled match"
+          className={inputClass}
+        />
+      </Field>
+
       <Field label="Season">
         <select name="season_id" defaultValue={defaultSeasonId} className={inputClass}>
           {seasons.map((season) => (

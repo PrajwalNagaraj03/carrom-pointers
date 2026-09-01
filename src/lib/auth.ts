@@ -32,7 +32,7 @@ export const requireMember = cache(async () => {
 
   const { data: member } = await supabase
     .from("app_members")
-    .select("email, display_name")
+    .select("email, display_name, is_admin")
     .eq("email", (claims.email ?? "").toLowerCase())
     .maybeSingle();
 

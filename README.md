@@ -18,7 +18,8 @@ changes, and deactivating is the only thing the Players page can do.
 A **season** holds many **matches**. Two or three of you play a match, and what
 gets written down is what each person finished on — *Ganesh 10, Prajwal 20,
 Amitesh 30*. Those numbers live one per person in `match_players`, so a match
-carries no score of its own.
+carries no score of its own. A match can also be given a **name** — *Friday
+decider* — which is optional and only there to make a long list readable.
 
 A score can be negative — pocket the striker often enough and a board costs you
 — so the leaderboard can go down as well as up.
@@ -47,6 +48,13 @@ Three independent locks, so no single mistake opens the data:
    used to sidestep this.
 3. **The app** — `requireMember()` runs on every page and every server action;
    `src/proxy.ts` bounces signed-out visitors to `/login`.
+
+**Deleting a match** is the one thing not open to everybody. Every member logs
+matches and corrects scores; only a member with `is_admin` can remove one, in
+the policy *and* in the app, which hides the button. Hand that over with
+`supabase/scripts/set-admin.sql`. The flag lives on the allowlist row rather
+than as an email written into a policy, so it survives someone changing their
+sign-in address.
 
 Adding a person is two steps in the Supabase dashboard: a row in `app_members`
 first, then a user under **Authentication → Users**. In that order — the trigger
@@ -87,7 +95,7 @@ npx supabase link --project-ref <your-project-ref>
 npx supabase db push
 ```
 
-Or paste `supabase/migrations/0001` → `0007` into the SQL editor in order.
+Or paste `supabase/migrations/0001` → `0009` into the SQL editor in order.
 
 ### 3. Fill in the allowlist
 
@@ -128,6 +136,7 @@ The other two scripts:
 | Script | For |
 | --- | --- |
 | `supabase/scripts/list-logins.sql` | Who is allowlisted, who has a login, when they last signed in |
+| `supabase/scripts/set-admin.sql` | Hand someone the right to delete a match (or take it back) |
 | `supabase/scripts/reset-password.sql` | Someone is locked out and cannot use /account |
 | `supabase/scripts/repair-logins.sql` | Sign-in insists the password is wrong when it is not (see below) |
 
@@ -252,8 +261,10 @@ supabase/
   migrations/                  0001 schema, 0002 standings view, 0003 RLS, 0004 functions,
                                0005 players provisioned from the allowlist,
                                0006 points per player rather than per side,
-                               0007 negative scores
-  scripts/                     add a login, reset a password, list who has one
+                               0007 negative scores, 0008 only an admin deletes,
+                               0009 match names
+  scripts/                     add a login, reset a password, list who has one,
+                               hand over the right to delete a match
   seed.sql                     the three approved accounts -- and so the players
   tests/                       local Postgres harness -- also runs scripts/ verbatim
 ```

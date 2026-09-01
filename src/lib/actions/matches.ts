@@ -28,6 +28,7 @@ const matchSchema = z
       .regex(/^\d{4}-\d{2}-\d{2}$/)
       .optional()
       .or(z.literal("")),
+    name: z.string().trim().max(60, "Keep the match name short.").optional(),
     notes: z.string().trim().max(200, "Keep the note short.").optional(),
   })
   .superRefine((value, ctx) => {
@@ -66,6 +67,7 @@ export async function logMatch(
     season_id: formData.get("season_id"),
     scores: scoresFrom(formData),
     played_on: formData.get("played_on") ?? "",
+    name: formData.get("name") ?? "",
     notes: formData.get("notes") ?? "",
   });
 
@@ -73,7 +75,7 @@ export async function logMatch(
     return { error: parsed.error.issues[0].message };
   }
 
-  const { season_id, scores, played_on, notes } = parsed.data;
+  const { season_id, scores, played_on, name, notes } = parsed.data;
 
   const { error } = await supabase.rpc("create_match", {
     p_season_id: season_id,
@@ -82,6 +84,7 @@ export async function logMatch(
     // A date-only input means "some time that day"; midday keeps it on the right
     // day whichever timezone reads it back.
     ...(played_on ? { p_played_at: new Date(`${played_on}T12:00:00`).toISOString() } : {}),
+    ...(name ? { p_name: name } : {}),
     ...(notes ? { p_notes: notes } : {}),
   });
 
@@ -97,18 +100,32 @@ export async function deleteMatch(
   _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const { supabase } = await requireMember();
+  const { supabase, member } = await requireMember();
 
   const matchId = z.uuid().safeParse(formData.get("match_id"));
   if (!matchId.success) {
     return { error: "Unknown match." };
   }
 
-  // match_players rows go with it (on delete cascade).
-  const { error } = await supabase.from("matches").delete().eq("id", matchId.data);
+  if (!member.is_admin) {
+    return { error: "Only an admin can delete a match." };
+  }
+
+  // match_players rows go with it (on delete cascade). Asking for the deleted
+  // ids back is what makes the RLS policy audible: a delete the policy refuses
+  // is not an error, it simply matches no rows and reports success.
+  const { data, error } = await supabase
+    .from("matches")
+    .delete()
+    .eq("id", matchId.data)
+    .select("id");
 
   if (error) {
     return { error: describe(error, "Could not delete that match.") };
+  }
+
+  if ((data?.length ?? 0) === 0) {
+    return { error: "That match was not deleted -- it is not yours to remove." };
   }
 
   revalidatePath("/", "layout");

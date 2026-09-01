@@ -7,7 +7,7 @@ import { requireMember } from "@/lib/auth";
 import { countMatches, getActiveSeason, getStandings, listMatches } from "@/lib/queries";
 
 export default async function DashboardPage() {
-  const { supabase } = await requireMember();
+  const { supabase, member } = await requireMember();
   const season = await getActiveSeason(supabase);
 
   if (!season) {
@@ -91,7 +91,7 @@ export default async function DashboardPage() {
         {matches.length === 0 ? (
           <EmptyState>Nothing logged yet. Your first board goes here.</EmptyState>
         ) : (
-          <MatchList matches={matches} />
+          <MatchList matches={matches} showDelete={member.is_admin} />
         )}
       </Card>
     </div>

@@ -11,16 +11,19 @@ export type Database = {
         Row: {
           email: string;
           display_name: string | null;
+          is_admin: boolean;
           created_at: string;
         };
         Insert: {
           email: string;
           display_name?: string | null;
+          is_admin?: boolean;
           created_at?: string;
         };
         Update: {
           email?: string;
           display_name?: string | null;
+          is_admin?: boolean;
           created_at?: string;
         };
         Relationships: [];
@@ -89,6 +92,7 @@ export type Database = {
           id: string;
           season_id: string;
           played_at: string;
+          name: string | null;
           notes: string | null;
           created_by: string | null;
           created_at: string;
@@ -97,6 +101,7 @@ export type Database = {
           id?: string;
           season_id: string;
           played_at?: string;
+          name?: string | null;
           notes?: string | null;
           created_by?: string | null;
           created_at?: string;
@@ -105,6 +110,7 @@ export type Database = {
           id?: string;
           season_id?: string;
           played_at?: string;
+          name?: string | null;
           notes?: string | null;
           created_by?: string | null;
           created_at?: string;
@@ -178,6 +184,7 @@ export type Database = {
           p_points: number[];
           p_played_at?: string;
           p_notes?: string | null;
+          p_name?: string | null;
         };
         Returns: string;
       };
@@ -197,6 +204,10 @@ export type Database = {
         Returns: undefined;
       };
       is_member: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
+      is_admin: {
         Args: Record<string, never>;
         Returns: boolean;
       };

@@ -90,6 +90,16 @@ begin
 end;
 $$;
 
+\echo '== set-admin.sql hands over the right to delete a match'
+\i supabase/scripts/set-admin.sql
+
+do $$
+begin
+  assert (select is_admin from public.app_members where email = 'first.player@example.com'),
+    'FAIL: set-admin.sql did not set is_admin';
+end;
+$$;
+
 \echo '== list-logins.sql runs and reports the login'
 \i supabase/scripts/list-logins.sql
 

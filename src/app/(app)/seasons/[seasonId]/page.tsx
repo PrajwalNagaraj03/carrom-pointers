@@ -9,7 +9,7 @@ import { getSeason, getStandings, listMatches } from "@/lib/queries";
 
 export default async function SeasonPage({ params }: PageProps<"/seasons/[seasonId]">) {
   const { seasonId } = await params;
-  const { supabase } = await requireMember();
+  const { supabase, member } = await requireMember();
 
   const season = await getSeason(supabase, seasonId);
   if (!season) {
@@ -42,7 +42,7 @@ export default async function SeasonPage({ params }: PageProps<"/seasons/[season
       </Card>
 
       <Card title={`Matches (${matches.length})`}>
-        <MatchList matches={matches} />
+        <MatchList matches={matches} showDelete={member.is_admin} />
       </Card>
     </div>
   );

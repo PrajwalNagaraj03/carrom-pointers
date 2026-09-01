@@ -4,10 +4,25 @@
 \set ON_ERROR_STOP on
 \set MEMBER_JWT '{"sub":"11111111-1111-1111-1111-111111111111","email":"member@example.com","role":"authenticated"}'
 \set OUTSIDER_JWT '{"sub":"22222222-2222-2222-2222-222222222222","email":"outsider@example.com","role":"authenticated"}'
+\set ADMIN_JWT '{"sub":"44444444-4444-4444-4444-444444444444","email":"boss@example.com","role":"authenticated"}'
 
 -- ---------------------------------------------------------------- allowlist --
 insert into public.app_members (email, display_name) values ('member@example.com', 'Member');
 insert into auth.users (id, email) values ('11111111-1111-1111-1111-111111111111', 'member@example.com');
+
+-- One of them keeps the book. Everyone else is a plain member.
+insert into public.app_members (email, display_name, is_admin)
+values ('boss@example.com', 'Boss', true);
+insert into auth.users (id, email) values ('44444444-4444-4444-4444-444444444444', 'boss@example.com');
+
+do $$
+begin
+  assert not (select is_admin from public.app_members where email = 'member@example.com'),
+    'FAIL: a member should not be an admin unless asked for';
+  assert (select is_admin from public.app_members where email = 'boss@example.com'),
+    'FAIL: the admin flag did not stick';
+end;
+$$;
 
 \echo '== joining the allowlist creates the player'
 do $$
@@ -119,7 +134,8 @@ select public.create_match(
   array[(select id from public.players where name = 'Ana'),
         (select id from public.players where name = 'Bala'),
         (select id from public.players where name = 'Chetan')],
-  array[21, 25, 25]);
+  array[21, 25, 25],
+  p_name => 'Friday decider');
 
 do $$
 declare v_created_by uuid;
@@ -127,6 +143,11 @@ begin
   select created_by into v_created_by from public.matches limit 1;
   assert v_created_by = '11111111-1111-1111-1111-111111111111',
     'FAIL: created_by should be stamped from auth.uid()';
+
+  assert exists (select 1 from public.matches where name = 'Friday decider'),
+    'FAIL: the match name was not stored';
+  assert (select count(*) from public.matches where name is null) = 1,
+    'FAIL: a match logged without a name should stay unnamed';
 end;
 $$;
 commit;
@@ -228,6 +249,16 @@ begin
   exception when check_violation then raise notice 'ok: duplicate player rejected';
   end;
 
+  -- A name of nothing but spaces is no name at all.
+  v_match := public.create_match(
+    'aaaaaaaa-0000-0000-0000-000000000001',
+    array[(select id from public.players where name = 'Ana'),
+          (select id from public.players where name = 'Bala')],
+    array[10, 5],
+    p_name => '   ');
+  assert (select name from public.matches where id = v_match) is null,
+    'FAIL: a blank match name should be stored as null';
+
   -- A negative score is legal: a bad board can cost you points.
   v_match := public.create_match(
     'aaaaaaaa-0000-0000-0000-000000000001',
@@ -304,6 +335,48 @@ begin
   perform public.close_season('aaaaaaaa-0000-0000-0000-000000000001');
   assert (select count(*) from public.seasons where is_active) = 0,
     'FAIL: closing the last season should leave none active';
+end;
+$$;
+rollback;
+
+\echo '== only an admin can delete a match'
+begin;
+set local role authenticated;
+set local request.jwt.claims = :'MEMBER_JWT';
+
+do $$
+declare
+  v_matches integer;
+  v_roster  integer;
+begin
+  select count(*) into v_matches from public.matches;
+  select count(*) into v_roster from public.match_players;
+  assert v_matches > 0 and v_roster > 0, 'FAIL: nothing logged to try deleting';
+
+  -- A delete the policy refuses is not an error: it simply matches no rows.
+  delete from public.matches;
+  assert (select count(*) from public.matches) = v_matches,
+    'FAIL: a plain member deleted matches';
+
+  -- And a match cannot be gutted a player at a time either.
+  delete from public.match_players;
+  assert (select count(*) from public.match_players) = v_roster,
+    'FAIL: a plain member deleted match players';
+end;
+$$;
+rollback;
+
+begin;
+set local role authenticated;
+set local request.jwt.claims = :'ADMIN_JWT';
+
+do $$
+begin
+  delete from public.matches;
+  assert (select count(*) from public.matches) = 0,
+    'FAIL: the admin could not delete a match';
+  assert (select count(*) from public.match_players) = 0,
+    'FAIL: deleting a match should take its roster with it';
 end;
 $$;
 rollback;

@@ -29,6 +29,11 @@ export function MatchList({
         return (
           <li key={match.id} className="flex items-start gap-3 px-4 py-3 sm:px-5">
             <div className="min-w-0 flex-1">
+              {match.name && (
+                <p className="mb-1 truncate text-sm font-medium text-accent">
+                  {match.name}
+                </p>
+              )}
               <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
                 {scores.map((entry, index) => (
                   <span
