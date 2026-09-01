@@ -44,6 +44,15 @@ Passwords are Supabase's business, not this app's. GoTrue stores a bcrypt hash
 in `auth.users.encrypted_password` and verifies it at sign-in; no password
 appears in these migrations, in `seed.sql`, or anywhere in the app code.
 
+Each person can change their own password at **/account**. It asks for the
+current one first, so a signed-in browser left open cannot be used to lock its
+owner out. You can also reset any password from the Supabase dashboard.
+
+The addresses only have to *look* like emails -- nothing is ever sent to them
+once Auto Confirm is on. If you would rather sign in as `prajwal` than as a real
+address, use something like `prajwal@carrom.local` consistently in both
+`app_members` and the user you create.
+
 ---
 
 ## Setup
@@ -172,6 +181,7 @@ src/
   app/
     login, auth/no-access
     (app)/                     everything behind the members-only gate
+                               dashboard, seasons, players, matches, account
   components/                  leaderboard, match form, match list, primitives
   lib/
     auth.ts                    requireMember() -- the real gate

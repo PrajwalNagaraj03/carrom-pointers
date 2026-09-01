@@ -34,9 +34,12 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           </nav>
 
           <form action={signOut} className="flex items-center gap-3">
-            <span className="hidden text-sm text-muted sm:inline">
+            <Link
+              href="/account"
+              className="hidden text-sm text-muted transition-colors hover:text-foreground sm:inline"
+            >
               {member.display_name ?? member.email}
-            </span>
+            </Link>
             <button
               type="submit"
               className="rounded-lg border border-border px-3 py-1.5 text-sm text-muted transition-colors hover:bg-surface-muted hover:text-foreground"
