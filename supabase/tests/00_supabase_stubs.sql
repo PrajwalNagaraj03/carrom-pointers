@@ -20,10 +20,32 @@ grant anon, authenticated, service_role to postgres;
 
 create schema if not exists auth;
 
+-- Mirrors the columns of GoTrue's auth.users that supabase/scripts touch.
 create table if not exists auth.users (
   id uuid primary key default gen_random_uuid(),
+  instance_id uuid,
+  aud varchar(255),
+  role varchar(255),
   email text unique,
-  created_at timestamptz not null default now()
+  encrypted_password varchar(255),
+  email_confirmed_at timestamptz,
+  last_sign_in_at timestamptz,
+  raw_app_meta_data jsonb,
+  raw_user_meta_data jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists auth.identities (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  provider text not null,
+  provider_id text not null,
+  identity_data jsonb not null,
+  last_sign_in_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (provider, provider_id)
 );
 
 -- Supabase surfaces the verified JWT to SQL through this GUC.

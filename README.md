@@ -86,22 +86,42 @@ insert into public.app_members (email, display_name) values
   ('other@example.com',  'Other');
 ```
 
-### 4. Create the three accounts
+### 4. Create the three logins
 
-In the Supabase dashboard, **Authentication → Users → Add user**, once per
-address. Set a password for each and tick *Auto Confirm User* so nobody has to
-click a confirmation email.
+Open `supabase/scripts/add-login.sql`, edit the three values at the top, and run
+the whole file in the SQL Editor. Once per person.
 
-Do this **after** step 3 — the trigger refuses any address that is not already
-in `app_members`, and it does not care that the request came from you.
+```sql
+v_email        text := 'prajwal@carrom.local';
+v_display_name text := 'Prajwal';
+v_password     text := 'something-only-they-know';
+```
+
+One run does both halves in one transaction — the `app_members` row that decides
+what they can see, and the `auth.users` login that proves who they are. Doing it
+by hand in the dashboard means getting that order right; the script cannot get
+it wrong. The password is bcrypt-hashed by `pgcrypto` on the way in, so the
+plaintext is never stored.
+
+Run it twice for the same address and it refuses rather than duplicating.
+
+The other two scripts:
+
+| Script | For |
+| --- | --- |
+| `supabase/scripts/list-logins.sql` | Who is allowlisted, who has a login, when they last signed in |
+| `supabase/scripts/reset-password.sql` | Someone is locked out and cannot use /account |
+
+**Never commit a password.** Edit these files, run them, then undo your edit —
+`git checkout supabase/scripts/add-login.sql`. This repository is public.
 
 Then turn sign-ups off: **Authentication → Sign In / Providers → Email**,
 disable *Allow new users to sign up*. The trigger already blocks unlisted
 addresses; this closes the door in front of it.
 
-Do not put passwords in `seed.sql` — a password in a migration is a password in
-your git history. To change one later, use **Authentication → Users** and reset
-it from there.
+If you would rather click than run SQL, **Authentication → Users → Add user**
+works too — tick *Auto Confirm User*, and add the address to `app_members`
+**first** or the trigger will reject it.
 
 ### 5. Run it
 
@@ -191,8 +211,9 @@ src/
     types/database.ts          typed mirror of the migrations
 supabase/
   migrations/                  0001 schema, 0002 standings view, 0003 RLS, 0004 functions
+  scripts/                     add a login, reset a password, list who has one
   seed.sql                     the three approved accounts
-  tests/                       local Postgres harness
+  tests/                       local Postgres harness -- also runs scripts/ verbatim
 ```
 
 Writes go through server actions rather than the browser client, and a match is

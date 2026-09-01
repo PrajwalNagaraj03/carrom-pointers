@@ -54,4 +54,7 @@ for migration in "$ROOT"/supabase/migrations/*.sql; do
 done
 
 echo "==> running assertions"
-psql -v ON_ERROR_STOP=1 -q -f "$ROOT/supabase/tests/01_assertions.sql"
+# From the repo root, so the \i paths inside the test files resolve.
+cd "$ROOT"
+psql -v ON_ERROR_STOP=1 -q -f supabase/tests/01_assertions.sql
+psql -v ON_ERROR_STOP=1 -q -f supabase/tests/02_scripts.sql
