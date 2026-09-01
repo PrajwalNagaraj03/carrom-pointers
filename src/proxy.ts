@@ -57,11 +57,14 @@ export default async function proxy(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims() refreshes an expiring session (which is what rotates the cookies
+  // above) and then verifies the JWT in process against the project's public
+  // signing key -- no round trip to the Auth server on a request that is only
+  // deciding whether to redirect. It runs on prefetches too, so it wants to be
+  // cheap.
+  const { data } = await supabase.auth.getClaims();
 
-  if (!user && !isPublic(request.nextUrl.pathname)) {
+  if (!data?.claims && !isPublic(request.nextUrl.pathname)) {
     const login = request.nextUrl.clone();
     login.pathname = "/login";
     login.search = "";
