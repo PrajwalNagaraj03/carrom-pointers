@@ -20,6 +20,9 @@ gets written down is what each person finished on — *Ganesh 10, Prajwal 20,
 Amitesh 30*. Those numbers live one per person in `match_players`, so a match
 carries no score of its own.
 
+A score can be negative — pocket the striker often enough and a board costs you
+— so the leaderboard can go down as well as up.
+
 Nothing about standings is stored: the `season_standings` view derives played /
 won / drawn / lost / points scored from the matches themselves, so correcting a
 match immediately corrects the table. Points **accumulate over the season**; a
@@ -84,7 +87,7 @@ npx supabase link --project-ref <your-project-ref>
 npx supabase db push
 ```
 
-Or paste `supabase/migrations/0001` → `0006` into the SQL editor in order.
+Or paste `supabase/migrations/0001` → `0007` into the SQL editor in order.
 
 ### 3. Fill in the allowlist
 
@@ -248,7 +251,8 @@ src/
 supabase/
   migrations/                  0001 schema, 0002 standings view, 0003 RLS, 0004 functions,
                                0005 players provisioned from the allowlist,
-                               0006 points per player rather than per side
+                               0006 points per player rather than per side,
+                               0007 negative scores
   scripts/                     add a login, reset a password, list who has one
   seed.sql                     the three approved accounts -- and so the players
   tests/                       local Postgres harness -- also runs scripts/ verbatim

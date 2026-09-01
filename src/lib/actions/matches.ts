@@ -16,7 +16,8 @@ const matchSchema = z
           points: z.coerce
             .number()
             .int("Points are whole numbers.")
-            .min(0, "Points cannot be negative.")
+            // Negative is allowed -- a bad board can cost you.
+            .min(-999, "That score looks wrong.")
             .max(999, "That score looks wrong."),
         }),
       )

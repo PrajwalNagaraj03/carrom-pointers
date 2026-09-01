@@ -146,8 +146,9 @@ function Scoreboard({ players }: { players: Player[] }) {
             <input
               type="number"
               name={`points_${player.id}`}
-              inputMode="numeric"
-              min={0}
+              // No inputMode="numeric": on iOS that is the digits-only keypad,
+              // which has no minus key, and a minus is now a legal score.
+              min={-999}
               max={999}
               step={1}
               required={isPlaying}

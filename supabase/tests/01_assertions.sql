@@ -179,12 +179,13 @@ $$;
 commit;
 
 -- ------------------------------------------------------- create_match guards --
-\echo '== create_match refuses malformed rosters'
+\echo '== create_match refuses malformed rosters, and takes a negative score'
 begin;
 set local role authenticated;
 set local request.jwt.claims = :'MEMBER_JWT';
 
 do $$
+declare v_match uuid;
 begin
   begin
     perform public.create_match(
@@ -227,13 +228,26 @@ begin
   exception when check_violation then raise notice 'ok: duplicate player rejected';
   end;
 
+  -- A negative score is legal: a bad board can cost you points.
+  v_match := public.create_match(
+    'aaaaaaaa-0000-0000-0000-000000000001',
+    array[(select id from public.players where name = 'Ana'),
+          (select id from public.players where name = 'Bala')],
+    array[-5, 10]);
+
+  assert (
+    select points from public.match_players
+     where match_id = v_match
+       and player_id = (select id from public.players where name = 'Ana')
+  ) = -5, 'FAIL: a negative score was not stored';
+
   begin
     perform public.create_match(
       'aaaaaaaa-0000-0000-0000-000000000001',
       array[(select id from public.players where name = 'Ana'),
             (select id from public.players where name = 'Bala')],
-      array[-1, 10]);
-    raise exception 'FAIL: a negative score was accepted';
+      array[-1000, 10]);
+    raise exception 'FAIL: a score past the floor was accepted';
   exception when check_violation then raise notice 'ok: score range enforced';
   end;
 end;
