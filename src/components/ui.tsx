@@ -38,8 +38,10 @@ export function EmptyState({ children }: { children: ReactNode }) {
   return <p className="px-4 py-8 text-center text-sm text-muted sm:px-5">{children}</p>;
 }
 
+// min-h-11 is 44px: the smallest thing a thumb hits reliably. Relaxed from sm up,
+// where a pointer is doing the aiming.
 const buttonBase =
-  "inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-9";
 
 const buttonVariants = {
   primary: "bg-accent text-white hover:opacity-90",
@@ -87,9 +89,18 @@ export function Field({
  * order you wrote them in.
  */
 export const inputBaseClass =
-  "rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent focus:ring-2 focus:ring-accent/25";
+  // text-base is 16px, and iOS Safari zooms the whole page when you focus a field
+  // smaller than that. Back to 14px from sm up, where nothing zooms.
+  "min-h-11 rounded-lg border border-border bg-background px-3 py-2 text-base text-foreground outline-none focus:border-accent focus:ring-2 focus:ring-accent/25 sm:min-h-0 sm:text-sm";
 
 export const inputClass = `w-full ${inputBaseClass}`;
+
+/**
+ * The small bordered actions that sit at the end of a list row -- Delete, Close
+ * season, Deactivate. Same 44px floor as Button; the label stays small.
+ */
+export const rowActionClass =
+  "inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-xs text-muted transition-colors hover:bg-surface-muted hover:text-foreground disabled:opacity-50 sm:min-h-8";
 
 export function FormError({ message }: { message?: string }) {
   if (!message) return null;

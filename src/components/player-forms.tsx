@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 
+import { rowActionClass } from "@/components/ui";
 import { setPlayerActive } from "@/lib/actions/players";
 import { initialActionState } from "@/lib/actions/shared";
 
@@ -22,7 +23,7 @@ export function TogglePlayerButton({
         type="submit"
         disabled={pending}
         title={state.error ?? (isActive ? "Hide from new matches" : "Bring back")}
-        className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted transition-colors hover:bg-surface-muted hover:text-foreground disabled:opacity-50"
+        className={rowActionClass}
       >
         {pending ? "…" : isActive ? "Deactivate" : "Reactivate"}
       </button>

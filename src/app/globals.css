@@ -56,3 +56,12 @@ body {
 .numeric {
   font-variant-numeric: tabular-nums;
 }
+
+/* The phone nav strip scrolls; the bar itself would only be visual noise. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

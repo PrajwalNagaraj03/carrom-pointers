@@ -51,7 +51,7 @@ export default async function DashboardPage() {
         </div>
         <Link
           href="/matches/new"
-          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          className="inline-flex min-h-11 items-center rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 sm:min-h-9"
         >
           Log a match
         </Link>
@@ -61,7 +61,8 @@ export default async function DashboardPage() {
         <Stat label="Matches" value={total} />
         <Stat label="Players" value={standings.length} />
         <Stat label="Board points" value={boardPoints} />
-        <Stat label="Leader" value={standings[0]?.player_name ?? "—"} />
+        {/* A name needs the full width on a phone, or it truncates to "Prajwal Nag…". */}
+        <Stat label="Leader" value={standings[0]?.player_name ?? "—"} wide />
       </div>
 
       <Card
@@ -82,7 +83,7 @@ export default async function DashboardPage() {
         action={
           <Link
             href={`/seasons/${season.id}`}
-            className="text-sm font-medium text-accent hover:underline"
+            className="inline-flex min-h-11 items-center text-sm font-medium text-accent hover:underline sm:min-h-0"
           >
             See all {total > 0 ? total : ""}
           </Link>
@@ -98,9 +99,21 @@ export default async function DashboardPage() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string | number }) {
+function Stat({
+  label,
+  value,
+  wide = false,
+}: {
+  label: string;
+  value: string | number;
+  wide?: boolean;
+}) {
   return (
-    <div className="rounded-xl border border-border bg-surface px-4 py-3">
+    <div
+      className={`rounded-xl border border-border bg-surface px-4 py-3 ${
+        wide ? "order-first col-span-2 sm:order-none sm:col-span-1" : ""
+      }`}
+    >
       <p className="text-xs uppercase tracking-wide text-muted">{label}</p>
       <p className="numeric mt-1 truncate text-xl font-semibold">{value}</p>
     </div>

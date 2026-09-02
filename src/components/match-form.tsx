@@ -136,18 +136,20 @@ function Scoreboard({ players }: { players: Player[] }) {
         return (
           <div
             key={player.id}
-            className={`flex items-center gap-3 rounded-lg border px-3 py-2 transition-colors ${
+            className={`flex min-h-14 items-center gap-3 rounded-lg border px-3 py-2 transition-colors ${
               isPlaying ? "border-accent/40 bg-accent-soft/40" : "border-border"
             }`}
           >
-            <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 text-sm">
+            {/* The label is the tap target, not just the box -- the whole left
+                half of the row toggles the player. */}
+            <label className="-my-2 flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-2.5 py-2 text-sm">
               <input
                 type="checkbox"
                 name="player_id"
                 value={player.id}
                 checked={isPlaying}
                 onChange={() => toggle(player.id)}
-                className="size-4 shrink-0 accent-[var(--accent)]"
+                className="size-5 shrink-0 accent-[var(--accent)]"
               />
               <span className={`truncate ${isPlaying ? "font-medium" : "text-muted"}`}>
                 {player.name}

@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useRef } from "react";
 
-import { Button, Field, FormError, inputClass } from "@/components/ui";
+import { Button, Field, FormError, inputClass, rowActionClass } from "@/components/ui";
 import { activateSeason, closeSeason, createSeason } from "@/lib/actions/seasons";
 import { initialActionState } from "@/lib/actions/shared";
 
@@ -64,7 +64,7 @@ export function SeasonStateButton({
         type="submit"
         disabled={pending}
         title={state.error}
-        className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted transition-colors hover:bg-surface-muted hover:text-foreground disabled:opacity-50"
+        className={rowActionClass}
       >
         {pending ? "…" : isActive ? "Close season" : "Make current"}
       </button>
