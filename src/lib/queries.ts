@@ -134,6 +134,21 @@ export async function listMatches(
   return (data ?? []) as MatchWithPlayers[];
 }
 
+/** One match with its roster, for the correction form. */
+export async function getMatch(
+  supabase: Client,
+  matchId: string,
+): Promise<MatchWithPlayers | null> {
+  const { data, error } = await supabase
+    .from("matches")
+    .select("*, match_players(points, players(id, name))")
+    .eq("id", matchId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data as MatchWithPlayers | null) ?? null;
+}
+
 export async function countMatches(supabase: Client, seasonId: string): Promise<number> {
   const { count, error } = await supabase
     .from("matches")

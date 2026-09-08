@@ -220,6 +220,17 @@ export type Database = {
         };
         Returns: string;
       };
+      update_match: {
+        Args: {
+          p_match_id: string;
+          p_players: string[];
+          p_points: number[];
+          p_played_at?: string;
+          p_name?: string | null;
+          p_notes?: string | null;
+        };
+        Returns: undefined;
+      };
       create_season: {
         Args: {
           p_name: string;

@@ -1,4 +1,6 @@
-import { EmptyState } from "@/components/ui";
+import Link from "next/link";
+
+import { EmptyState, rowActionClass } from "@/components/ui";
 import { DeleteMatchButton } from "@/components/delete-match-button";
 import type { MatchWithPlayers } from "@/lib/types/database";
 
@@ -53,7 +55,17 @@ export function MatchList({
               </p>
             </div>
 
-            {showDelete && <DeleteMatchButton matchId={match.id} />}
+            <div className="flex shrink-0 items-center gap-1">
+              {/* Correcting a score is everyone's; removing the match is not. */}
+              <Link
+                href={`/matches/${match.id}/edit`}
+                className={`${rowActionClass} border-transparent hover:border-border`}
+                aria-label="Correct this match"
+              >
+                Edit
+              </Link>
+              {showDelete && <DeleteMatchButton matchId={match.id} />}
+            </div>
           </li>
         );
       })}

@@ -43,6 +43,12 @@ split is derived, not stored: `season_standings_by_size` is the same maths as
 `season_standings` grouped by how many played, and the two always sum back to
 the same totals.
 
+A score written down wrong can be corrected from **Edit** on any match. Who
+played is not editable there: dropping someone from a match means deleting a
+row, and deleting is reserved for an admin -- so a wrongly ticked player still
+means deleting the match and logging it again. Standings are derived, so a
+correction shows up in them immediately.
+
 ## How access works
 
 Three independent locks, so no single mistake opens the data:

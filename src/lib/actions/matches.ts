@@ -96,6 +96,73 @@ export async function logMatch(
   return saved();
 }
 
+const correctionSchema = z.object({
+  match_id: z.uuid("Unknown match."),
+  scores: z
+    .array(
+      z.object({
+        player_id: z.uuid(),
+        points: z.coerce
+          .number()
+          .int("Points are whole numbers.")
+          .min(-999, "That score looks wrong.")
+          .max(999, "That score looks wrong."),
+      }),
+    )
+    .min(2, "A match is 2 or 3 players."),
+  played_on: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional()
+    .or(z.literal("")),
+  name: z.string().trim().max(60, "Keep the match name short.").optional(),
+  notes: z.string().trim().max(200, "Keep the note short.").optional(),
+});
+
+/**
+ * Correcting a match already logged. Everyone may do this -- it is the typo fix.
+ *
+ * Who played is not editable: dropping a player means deleting a row, and that
+ * is reserved for an admin. update_match refuses a changed roster outright.
+ */
+export async function updateMatch(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { supabase } = await requireMember();
+
+  const parsed = correctionSchema.safeParse({
+    match_id: formData.get("match_id"),
+    scores: scoresFrom(formData),
+    played_on: formData.get("played_on") ?? "",
+    name: formData.get("name") ?? "",
+    notes: formData.get("notes") ?? "",
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+
+  const { match_id, scores, played_on, name, notes } = parsed.data;
+
+  const { error } = await supabase.rpc("update_match", {
+    p_match_id: match_id,
+    p_players: scores.map((entry) => entry.player_id),
+    p_points: scores.map((entry) => entry.points),
+    // Cleared boxes clear the stored value, which is what an edit form should do.
+    p_name: name ?? null,
+    p_notes: notes ?? null,
+    ...(played_on ? { p_played_at: new Date(`${played_on}T12:00:00`).toISOString() } : {}),
+  });
+
+  if (error) {
+    return { error: describe(error, "Could not save that correction.") };
+  }
+
+  revalidatePath("/", "layout");
+  return saved();
+}
+
 export async function deleteMatch(
   _previous: ActionState,
   formData: FormData,

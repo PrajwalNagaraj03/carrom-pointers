@@ -368,6 +368,105 @@ end;
 $$;
 rollback;
 
+\echo '== a member can correct the scores on a match'
+begin;
+set local role authenticated;
+set local request.jwt.claims = :'MEMBER_JWT';
+
+do $$
+declare
+  v_match uuid;
+  v_ana uuid := (select id from public.players where name = 'Ana');
+  v_bala uuid := (select id from public.players where name = 'Bala');
+  v_chetan uuid := (select id from public.players where name = 'Chetan');
+  r record;
+begin
+  select mp.match_id into v_match
+    from public.match_players mp
+   group by mp.match_id
+  having count(*) = 2
+   limit 1;
+
+  -- 25-12 was written down the wrong way round.
+  perform public.update_match(
+    v_match,
+    array[v_ana, v_bala],
+    array[12, 25],
+    p_name => 'Corrected'
+  );
+
+  assert (select points from public.match_players
+           where match_id = v_match and player_id = v_ana) = 12,
+    'FAIL: Ana was not corrected to 12';
+  assert (select points from public.match_players
+           where match_id = v_match and player_id = v_bala) = 25,
+    'FAIL: Bala was not corrected to 25';
+  assert (select name from public.matches where id = v_match) = 'Corrected',
+    'FAIL: the match name was not updated';
+
+  -- The standings are derived, so they follow without anything else running.
+  select * into r from public.season_standings where player_name = 'Ana';
+  assert r.points_scored = 33, format('FAIL: Ana now on %s, expected 33', r.points_scored);
+  assert r.wins = 0 and r.losses = 2,
+    format('FAIL: Ana W/L now %s/%s, expected 0/2', r.wins, r.losses);
+
+  -- Order of the arrays must not matter.
+  perform public.update_match(v_match, array[v_bala, v_ana], array[7, 9]);
+  assert (select points from public.match_players
+           where match_id = v_match and player_id = v_ana) = 9,
+    'FAIL: arrays paired by position, not by player';
+
+  -- Who played is not editable here; that needs a delete, which is an admin's.
+  begin
+    perform public.update_match(v_match, array[v_ana, v_chetan], array[10, 10]);
+    raise exception 'FAIL: the roster was swapped through update_match';
+  exception when check_violation then
+    raise notice 'ok: roster is fixed';
+  end;
+
+  begin
+    perform public.update_match(v_match, array[v_ana, v_bala], array[10]);
+    raise exception 'FAIL: a missing score was accepted';
+  exception when check_violation then
+    raise notice 'ok: every player needs a score';
+  end;
+
+  begin
+    perform public.update_match(
+      '00000000-0000-0000-0000-0000000000ff', array[v_ana, v_bala], array[1, 2]);
+    raise exception 'FAIL: a match that does not exist was corrected';
+  exception when no_data_found then
+    raise notice 'ok: unknown match refused';
+  end;
+
+  begin
+    perform public.update_match(v_match, array[v_ana, v_bala], array[5000, 1]);
+    raise exception 'FAIL: an out-of-range score was accepted';
+  exception when check_violation then
+    raise notice 'ok: the score range still holds on a correction';
+  end;
+end;
+$$;
+rollback;
+
+\echo '== an outsider cannot correct a match'
+begin;
+set local role authenticated;
+set local request.jwt.claims = :'OUTSIDER_JWT';
+do $$
+declare v_match uuid := (select id from public.matches limit 1);
+begin
+  -- The outsider cannot even see the match, so this is the not-found path.
+  begin
+    perform public.update_match(v_match, array[gen_random_uuid()], array[1]);
+    raise exception 'FAIL: an outsider corrected a match';
+  exception when no_data_found or check_violation or insufficient_privilege then
+    raise notice 'ok: outsider correction refused';
+  end;
+end;
+$$;
+rollback;
+
 \echo '== only one season can be active at a time'
 begin;
 set local role authenticated;
