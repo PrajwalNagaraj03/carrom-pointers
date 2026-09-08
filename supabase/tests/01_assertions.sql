@@ -199,6 +199,89 @@ end;
 $$;
 commit;
 
+-- ------------------------------------------- boards split by table size, duels --
+\echo '== standings split three-player boards from one-on-ones'
+begin;
+set local role authenticated;
+set local request.jwt.claims = :'MEMBER_JWT';
+
+do $$
+declare r record;
+begin
+  -- The one-on-one: Ana 25 beat Bala 12.
+  select * into r from public.season_standings_by_size
+   where player_name = 'Ana' and table_size = 2;
+  assert r.matches_played = 1 and r.wins = 1 and r.losses = 0,
+    format('FAIL: Ana one-on-one W/L was %s/%s over %s', r.wins, r.losses, r.matches_played);
+  assert r.points_scored = 25, format('FAIL: Ana one-on-one points %s, expected 25', r.points_scored);
+
+  select * into r from public.season_standings_by_size
+   where player_name = 'Bala' and table_size = 2;
+  assert r.wins = 0 and r.losses = 1 and r.points_scored = 12,
+    'FAIL: Bala one-on-one row wrong';
+
+  -- The full board: Ana 21, Bala 25, Chetan 25 -- Bala and Chetan tied on top.
+  select * into r from public.season_standings_by_size
+   where player_name = 'Ana' and table_size = 3;
+  assert r.matches_played = 1 and r.wins = 0 and r.losses = 1 and r.points_scored = 21,
+    'FAIL: Ana three-player row wrong';
+
+  select * into r from public.season_standings_by_size
+   where player_name = 'Bala' and table_size = 3;
+  assert r.draws = 1 and r.wins = 0 and r.points_scored = 25,
+    'FAIL: Bala three-player row wrong';
+
+  -- Chetan has only ever played three-handed, so he has no size-2 row at all.
+  assert not exists (
+    select 1 from public.season_standings_by_size
+     where player_name = 'Chetan' and table_size = 2
+  ), 'FAIL: Chetan should not appear in the one-on-one table';
+
+  -- The split has to add back up to the blended table it came from.
+  assert (select sum(points_scored) from public.season_standings_by_size)
+       = (select sum(points_scored) from public.season_standings),
+    'FAIL: the split boards do not sum to season_standings';
+  assert (select sum(matches_played) from public.season_standings_by_size)
+       = (select sum(matches_played) from public.season_standings),
+    'FAIL: matches played do not sum to season_standings';
+end;
+$$;
+
+\echo '== head to head counts the one-on-ones, and only those'
+do $$
+declare
+  r record;
+  v_ana uuid := (select id from public.players where name = 'Ana');
+  v_bala uuid := (select id from public.players where name = 'Bala');
+begin
+  assert (select count(*) from public.season_head_to_head) = 1,
+    'FAIL: exactly one pair has played one-on-one';
+
+  select * into r from public.season_head_to_head;
+  assert r.matches_played = 1, format('FAIL: %s duels, expected 1', r.matches_played);
+
+  -- Which of the two is "a" is decided by uuid order, so read it either way.
+  if r.player_a_id = v_ana then
+    assert r.player_b_id = v_bala, 'FAIL: the pair is not Ana and Bala';
+    assert r.player_a_wins = 1 and r.player_b_wins = 0, 'FAIL: Ana should lead 1-0';
+    assert r.player_a_points = 25 and r.player_b_points = 12, 'FAIL: duel points wrong';
+  else
+    assert r.player_a_id = v_bala and r.player_b_id = v_ana, 'FAIL: the pair is not Ana and Bala';
+    assert r.player_b_wins = 1 and r.player_a_wins = 0, 'FAIL: Ana should lead 1-0';
+    assert r.player_b_points = 25 and r.player_a_points = 12, 'FAIL: duel points wrong';
+  end if;
+
+  assert r.draws = 0, 'FAIL: that duel was not a draw';
+
+  -- Chetan has only played three-handed; he must not turn up in any pair.
+  assert not exists (
+    select 1 from public.season_head_to_head
+     where player_a_name = 'Chetan' or player_b_name = 'Chetan'
+  ), 'FAIL: a three-player match leaked into head to head';
+end;
+$$;
+commit;
+
 -- ------------------------------------------------------- create_match guards --
 \echo '== create_match refuses malformed rosters, and takes a negative score'
 begin;
@@ -417,6 +500,10 @@ begin
   assert v_count = 0, format('FAIL: outsider read %s seasons', v_count);
   select count(*) into v_count from public.season_standings;
   assert v_count = 0, format('FAIL: outsider read %s standings rows', v_count);
+  select count(*) into v_count from public.season_standings_by_size;
+  assert v_count = 0, format('FAIL: outsider read %s split-standings rows', v_count);
+  select count(*) into v_count from public.season_head_to_head;
+  assert v_count = 0, format('FAIL: outsider read %s head-to-head rows', v_count);
   select count(*) into v_count from public.app_members;
   assert v_count = 0, format('FAIL: outsider read %s allowlist rows', v_count);
 

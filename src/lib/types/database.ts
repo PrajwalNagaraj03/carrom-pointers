@@ -175,6 +175,38 @@ export type Database = {
         };
         Relationships: [];
       };
+      season_standings_by_size: {
+        Row: {
+          season_id: string;
+          table_size: number;
+          player_id: string;
+          player_name: string;
+          is_active: boolean;
+          matches_played: number;
+          wins: number;
+          draws: number;
+          losses: number;
+          points_scored: number;
+          best_score: number;
+        };
+        Relationships: [];
+      };
+      season_head_to_head: {
+        Row: {
+          season_id: string;
+          player_a_id: string;
+          player_a_name: string;
+          player_b_id: string;
+          player_b_name: string;
+          matches_played: number;
+          player_a_wins: number;
+          player_b_wins: number;
+          draws: number;
+          player_a_points: number;
+          player_b_points: number;
+        };
+        Relationships: [];
+      };
     };
     Functions: {
       create_match: {
@@ -224,6 +256,18 @@ export type Season = Database["public"]["Tables"]["seasons"]["Row"];
 export type Match = Database["public"]["Tables"]["matches"]["Row"];
 export type AppMember = Database["public"]["Tables"]["app_members"]["Row"];
 export type StandingsRow = Database["public"]["Views"]["season_standings"]["Row"];
+export type SizedStandingsRow =
+  Database["public"]["Views"]["season_standings_by_size"]["Row"];
+export type HeadToHeadRow = Database["public"]["Views"]["season_head_to_head"]["Row"];
+
+/** Which board the leaderboard is showing. */
+export type BoardView = "all" | "three" | "two";
+
+export const BOARD_VIEWS: BoardView[] = ["all", "three", "two"];
+
+export function isBoardView(value: unknown): value is BoardView {
+  return typeof value === "string" && (BOARD_VIEWS as string[]).includes(value);
+}
 
 /** A match with its scorers resolved to player names, as the match list renders it. */
 export type MatchWithPlayers = Match & {

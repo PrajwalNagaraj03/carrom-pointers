@@ -1,13 +1,25 @@
 import Link from "next/link";
 
+import { BOARD_CAPTIONS, BoardTabs } from "@/components/board-tabs";
+import { HeadToHead } from "@/components/head-to-head";
 import { Leaderboard } from "@/components/leaderboard";
 import { MatchList } from "@/components/match-list";
-import { Badge, Card, EmptyState } from "@/components/ui";
+import { Card, EmptyState } from "@/components/ui";
 import { requireMember } from "@/lib/auth";
-import { countMatches, getActiveSeason, getStandings, listMatches } from "@/lib/queries";
+import {
+  countMatches,
+  getActiveSeason,
+  getHeadToHead,
+  getStandings,
+  getStandingsForBoard,
+  listMatches,
+} from "@/lib/queries";
+import { isBoardView } from "@/lib/types/database";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: PageProps<"/">) {
   const { supabase, member } = await requireMember();
+  const { board } = await searchParams;
+  const view = isBoardView(board) ? board : "all";
   const season = await getActiveSeason(supabase);
 
   if (!season) {
@@ -28,8 +40,11 @@ export default async function DashboardPage() {
     );
   }
 
-  const [standings, matches, total] = await Promise.all([
+  const [standings, shown, duels, matches, total] = await Promise.all([
+    // The tiles always describe the whole season, whichever board is on screen.
     getStandings(supabase, season.id),
+    getStandingsForBoard(supabase, season.id, view),
+    getHeadToHead(supabase, season.id),
     listMatches(supabase, season.id, 8),
     countMatches(supabase, season.id),
   ]);
@@ -67,15 +82,20 @@ export default async function DashboardPage() {
 
       <Card
         title={
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-              Leaderboard
-            </h2>
-            <Badge tone="active">by points scored</Badge>
-          </div>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+            Leaderboard
+          </h2>
         }
+        action={<BoardTabs basePath="/" current={view} />}
       >
-        <Leaderboard rows={standings} />
+        <p className="border-b border-border px-4 py-2 text-xs text-muted sm:px-5">
+          {BOARD_CAPTIONS[view]} Ranked by points scored.
+        </p>
+        <Leaderboard rows={shown} />
+      </Card>
+
+      <Card title="Head to head">
+        <HeadToHead rows={duels} />
       </Card>
 
       <Card

@@ -1,6 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import type { Database, MatchWithPlayers, Player, Season, StandingsRow } from "@/lib/types/database";
+import type {
+  BoardView,
+  Database,
+  HeadToHeadRow,
+  MatchWithPlayers,
+  Player,
+  Season,
+  StandingsRow,
+} from "@/lib/types/database";
 
 type Client = SupabaseClient<Database>;
 
@@ -66,6 +74,65 @@ export async function getStandings(
     .order("wins", { ascending: false })
     .order("best_score", { ascending: false })
     .order("player_name", { ascending: true });
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+/**
+ * The same leaderboard for one size of board. "three" is the usual game, "two"
+ * the one-on-ones; season_standings_by_size splits them, and the columns match
+ * getStandings so one table component renders either.
+ */
+export async function getStandingsForBoard(
+  supabase: Client,
+  seasonId: string,
+  board: BoardView,
+): Promise<StandingsRow[]> {
+  if (board === "all") {
+    return getStandings(supabase, seasonId);
+  }
+
+  const { data, error } = await supabase
+    .from("season_standings_by_size")
+    .select("*")
+    .eq("season_id", seasonId)
+    .eq("table_size", board === "three" ? 3 : 2)
+    .order("points_scored", { ascending: false })
+    .order("wins", { ascending: false })
+    .order("best_score", { ascending: false })
+    .order("player_name", { ascending: true });
+
+  if (error) throw error;
+
+  // Name the columns rather than spreading around table_size: the two row types
+  // stay independent, and adding a column to one view cannot silently leak into
+  // the other.
+  return (data ?? []).map((row) => ({
+    season_id: row.season_id,
+    player_id: row.player_id,
+    player_name: row.player_name,
+    is_active: row.is_active,
+    matches_played: row.matches_played,
+    wins: row.wins,
+    draws: row.draws,
+    losses: row.losses,
+    points_scored: row.points_scored,
+    best_score: row.best_score,
+  }));
+}
+
+/** Each pair who have played one-on-one, and how that stands. */
+export async function getHeadToHead(
+  supabase: Client,
+  seasonId: string,
+): Promise<HeadToHeadRow[]> {
+  const { data, error } = await supabase
+    .from("season_head_to_head")
+    .select("*")
+    .eq("season_id", seasonId)
+    .order("matches_played", { ascending: false })
+    .order("player_a_name", { ascending: true });
 
   if (error) throw error;
   return data ?? [];

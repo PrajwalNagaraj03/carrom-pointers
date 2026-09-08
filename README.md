@@ -33,6 +33,14 @@ a match gets a draw instead.
 The leaderboard ranks by **points scored**, with wins and then your best single
 match breaking ties.
 
+Three round the board is the usual game, but any two can play each other, and
+those are a different contest. The leaderboard switches between **all matches**,
+the **three-player** boards, and the **one-on-ones** (`?board=three` / `two`),
+and a **head to head** table shows each pair's record against each other. The
+split is derived, not stored: `season_standings_by_size` is the same maths as
+`season_standings` grouped by how many played, and the two always sum back to
+the same totals.
+
 ## How access works
 
 Three independent locks, so no single mistake opens the data:
