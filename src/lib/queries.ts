@@ -1,12 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type {
-  BoardView,
   Database,
   HeadToHeadRow,
   MatchWithPlayers,
   Player,
   Season,
+  SizedStandingsRow,
   StandingsRow,
 } from "@/lib/types/database";
 
@@ -80,46 +80,22 @@ export async function getStandings(
 }
 
 /**
- * The same leaderboard for one size of board. "three" is the usual game, "two"
- * the one-on-ones; season_standings_by_size splits them, and the columns match
- * getStandings so one table component renders either.
+ * Every sized row for the season in one trip -- both the one-on-ones and the
+ * full boards. Three players make this a handful of rows, and fetching the lot
+ * once is what lets the leaderboard switch between them without going back to
+ * the server on every click.
  */
-export async function getStandingsForBoard(
+export async function getStandingsBySize(
   supabase: Client,
   seasonId: string,
-  board: BoardView,
-): Promise<StandingsRow[]> {
-  if (board === "all") {
-    return getStandings(supabase, seasonId);
-  }
-
+): Promise<SizedStandingsRow[]> {
   const { data, error } = await supabase
     .from("season_standings_by_size")
     .select("*")
-    .eq("season_id", seasonId)
-    .eq("table_size", board === "three" ? 3 : 2)
-    .order("points_scored", { ascending: false })
-    .order("wins", { ascending: false })
-    .order("best_score", { ascending: false })
-    .order("player_name", { ascending: true });
+    .eq("season_id", seasonId);
 
   if (error) throw error;
-
-  // Name the columns rather than spreading around table_size: the two row types
-  // stay independent, and adding a column to one view cannot silently leak into
-  // the other.
-  return (data ?? []).map((row) => ({
-    season_id: row.season_id,
-    player_id: row.player_id,
-    player_name: row.player_name,
-    is_active: row.is_active,
-    matches_played: row.matches_played,
-    wins: row.wins,
-    draws: row.draws,
-    losses: row.losses,
-    points_scored: row.points_scored,
-    best_score: row.best_score,
-  }));
+  return data ?? [];
 }
 
 /** Each pair who have played one-on-one, and how that stands. */
